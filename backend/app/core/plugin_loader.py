@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 from typing import Iterable, List, Optional
 
-from .plugin_settings import plugin_settings
+from ..config.plugins import plugin_settings
 from ..plugins.base import BasePlugin, PluginConfig, PluginError
 
 logger = logging.getLogger(__name__)
