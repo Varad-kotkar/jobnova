@@ -1,0 +1,51 @@
+You are a senior Product Manager, Startup CTO, UX Designer, SEO Expert, and Automation Architect.
+
+Help me design a production-ready startup called JobNova.
+
+About JobNova:
+
+JobNova is an AI-powered career discovery platform focused on India and Remote jobs.
+
+Primary audience:
+- College students
+- Freshers
+- Software Engineers
+- Data Analysts
+- AI Engineers
+- Developers
+
+Primary goals:
+- Automatically discover new jobs
+- Automatically publish them on the website
+- Automatically post to Telegram
+- Grow organic Google traffic
+- Earn revenue from ads and career services
+
+Important constraints:
+
+- Build using free tools whenever possible.
+- Minimize maintenance.
+- Prefer APIs over scraping whenever possible.
+- Make every page SEO-friendly.
+- Design for long-term scalability.
+
+Generate:
+
+1. Product vision
+2. Target audience
+3. User personas
+4. Features (MVP, V2, V3)
+5. Website structure
+6. Navigation
+7. SEO strategy
+8. Database entities
+9. Automation workflow
+10. Revenue model
+11. Future roadmap
+12. Risks and mitigation
+13. KPIs
+14. User journey
+
+Do not write code.
+
+Think like a founder building a profitable startup.
