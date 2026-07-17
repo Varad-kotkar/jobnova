@@ -1,0 +1,17 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+alembic
+asyncpg
+httpx
+beautifulsoup4
+lxml
+pydantic
+pydantic-settings
+python-dotenv
+loguru
+tenacity
+python-slugify
+orjson
+aiofiles
+greenlet
