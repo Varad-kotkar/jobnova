@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import JobDetail from "@/components/job-detail";
 
 interface JobPageProps {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }
 
 async function fetchJob(slug: string) {
@@ -13,8 +13,9 @@ async function fetchJob(slug: string) {
   return res.json();
 }
 
-export default async function JobPage({ params }: JobPageProps) {
-  const job = await fetchJob(params.slug);
+export default async function JobPage(props: JobPageProps) {
+  const { slug } = await props.params;
+  const job = await fetchJob(slug);
   if (!job) {
     notFound();
   }
