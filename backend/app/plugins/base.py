@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any, Dict, List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..models.job_listing import JobListing
 
 
 @dataclass(frozen=True)
@@ -25,7 +28,7 @@ class BasePlugin(ABC):
         self.config = config
 
     @abstractmethod
-    async def collect(self) -> List[Dict[str, Any]]:
+    async def collect(self) -> List[JobListing]:
         raise NotImplementedError
 
     @property

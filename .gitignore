@@ -16,6 +16,8 @@ out/
 __pycache__/
 *.py[cod]
 *.pyo
+*.db
+*.sqlite3
 
 # Logs
 npm-debug.log*

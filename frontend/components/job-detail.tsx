@@ -29,7 +29,7 @@ export default function JobDetail({ job }: JobDetailProps) {
         <a
           href={job.apply_url}
           target="_blank"
-          rel="noreferrer"
+          rel="noopener noreferrer"
           className="inline-flex items-center rounded-3xl bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
         >
           Apply now
@@ -43,7 +43,7 @@ export default function JobDetail({ job }: JobDetailProps) {
         <div>
           <h2 className="text-xl font-semibold text-slate-950">Skills</h2>
           <div className="mt-4 flex flex-wrap gap-2">
-            {job.skills.map((skill) => (
+            {(job.skills ?? []).map((skill) => (
               <span key={skill} className="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">
                 {skill}
               </span>
