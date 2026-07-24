@@ -1,13 +1,20 @@
 import JobCard from "@/components/job-card";
 
 async function fetchJobs() {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3000"}/api/jobs?page=1&page_size=10`, {
-    next: { revalidate: 60 },
-  });
-  if (!res.ok) {
-    throw new Error("Failed to fetch jobs");
+  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3000";
+  try {
+    const res = await fetch(`${baseUrl}/api/jobs?page=1&page_size=10`, {
+      next: { revalidate: 60 },
+    });
+    if (!res.ok) {
+      console.warn("Failed to fetch jobs:", res.statusText);
+      return { items: [], total: 0 };
+    }
+    return res.json();
+  } catch (error) {
+    console.warn("Error fetching jobs (likely during prerender):", error);
+    return { items: [], total: 0 };
   }
-  return res.json();
 }
 
 export default async function JobFeed() {
