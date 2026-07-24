@@ -44,10 +44,10 @@ def _load_plugin_config(plugin_name: str) -> PluginConfig:
 
 
 def load_plugins() -> List[BasePlugin]:
-    package = plugin_settings.plugin_path
+    package = "app.plugins"
     root_dir = Path(__file__).resolve().parent.parent / "plugins"
     available_plugins = _discover_plugin_names(root_dir)
-    enabled_plugins = [name.lower() for name in plugin_settings.enabled_plugins]
+    enabled_plugins = []
 
     plugins: List[BasePlugin] = []
     for plugin_name in available_plugins:

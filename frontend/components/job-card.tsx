@@ -27,7 +27,7 @@ export default function JobCard({ slug, title, company, location, skills, remote
         <span>{new Date(publishedAt).toLocaleDateString()}</span>
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
-        {skills.slice(0, 4).map((skill) => (
+        {(skills ?? []).slice(0, 4).map((skill) => (
           <span key={skill} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
             {skill}
           </span>

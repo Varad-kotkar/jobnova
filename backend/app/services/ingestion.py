@@ -41,10 +41,6 @@ async def ingest_job_listings(
             async with session.begin():
                 return await _process_listings(session, listings, source_name)
 
-    if not session.in_transaction():
-        async with session.begin():
-            return await _process_listings(session, listings, source_name)
-
     return await _process_listings(session, listings, source_name)
 
 
