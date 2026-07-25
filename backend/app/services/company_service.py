@@ -20,7 +20,7 @@ class CompanyService:
         search: Optional[str] = None,
         sort_by: str = "jobs",
     ) -> List[Dict[str, Any]]:
-        # Single efficient aggregated query for active_jobs, remote_jobs, latest_job_posted
+        # Aggregated query with OUTER JOIN for active_jobs, remote_jobs, latest_job_posted
         query = (
             select(
                 Company.id,
@@ -32,11 +32,11 @@ class CompanyService:
                 Company.headquarters,
                 Company.description,
                 Company.logo_url,
-                func.count(Job.id).label("active_jobs"),
-                func.sum(case((Job.remote.is_(True), 1), else_=0)).label("remote_jobs"),
+                func.coalesce(func.count(Job.id), 0).label("active_jobs"),
+                func.coalesce(func.sum(case((Job.remote.is_(True), 1), else_=0)), 0).label("remote_jobs"),
                 func.max(Job.published_at).label("latest_job_posted"),
             )
-            .join(Job, Job.company_id == Company.id)
+            .outerjoin(Job, Job.company_id == Company.id)
             .group_by(
                 Company.id,
                 Company.name,
@@ -60,7 +60,7 @@ class CompanyService:
             query = query.order_by(func.max(Job.published_at).desc())
         else:
             # Default sort by job count descending
-            query = query.order_by(func.count(Job.id).desc())
+            query = query.order_by(func.count(Job.id).desc(), Company.name.asc())
 
         result = await session.execute(query)
         rows = result.all()
@@ -76,10 +76,10 @@ class CompanyService:
                     "industry": row.industry or "Software & Technology",
                     "size": row.size or "100-1,000 employees",
                     "headquarters": row.headquarters or "San Francisco, CA",
-                    "description": row.description,
+                    "description": row.description or f"{row.name} is a leading technology company hiring engineering and product talent.",
                     "logo_url": row.logo_url,
-                    "active_jobs": row.active_jobs or 0,
-                    "remote_jobs": row.remote_jobs or 0,
+                    "active_jobs": int(row.active_jobs or 0),
+                    "remote_jobs": int(row.remote_jobs or 0),
                     "latest_job_posted": row.latest_job_posted.isoformat() if row.latest_job_posted else None,
                 }
             )

@@ -29,3 +29,11 @@ Thumbs.db
 
 # Docker
 docker-compose.override.yml
+
+# User uploaded files
+uploads/
+backend/uploads/
+uploads/resumes/
+
+# Temporary files
+*.log

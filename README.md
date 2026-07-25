@@ -1,4 +1,12 @@
-# JobNova — Candidate CRM & AI Intelligence Platform (v1.0.0)
+# JobNova — Candidate Intelligence & Recruiter Platform (v1.1 Commercial Release)
+
+[![CI Pipeline](https://github.com/Varad-kotkar/JobNova/actions/workflows/ci.yml/badge.svg)](https://github.com/Varad-kotkar/JobNova/actions)
+![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)
+![Next.js](https://img.shields.io/badge/Next.js-15.2+-000000.svg)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791.svg)
+![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
 
 JobNova is a production-grade, two-sided candidate intelligence and employer recruitment platform built with **FastAPI**, **Next.js 15 (App Router)**, **PostgreSQL**, **Redis**, and **Alembic**.
 
@@ -37,33 +45,41 @@ JobNova is a production-grade, two-sided candidate intelligence and employer rec
 
 ---
 
-## ✨ Features & Module Capabilities
+## ✨ v1.1 Commercial Release Highlights
 
-### 1. Ingestion Engine & Spam Prevention (Phases 1–14)
-* Modular scraper plugin architecture with automated duplicate detection and spam filtering (rejection of fake paid course enrollments & placement training fees).
+* **Design System Polish**: Minimalist Stripe/Linear aesthetic with Plus Jakarta Sans typography, clean neutrals (`#FFFFFF`, `#F8FAFC`, `#E5E7EB`), and `#2563EB` primary accents.
+* **Zero Broken Routes & Query Hardening**: Fixed Companies Directory with SQL `outerjoin` and `COALESCE` aggregations.
+* **Interactive Empty States**: Popular skill pills ("Frontend", "Python", "Full Stack") and employer search cards when filters return zero direct matches.
+* **Dynamic SEO Integration**: Automated dynamic `sitemap.xml`, `robots.txt`, OpenGraph cards, Twitter cards, and canonical metadata tags.
+* **Production Authentication**: Clean candidate and recruiter email/password login and registration with token persistence.
 
-### 2. Candidate Dashboard & Application CRM (Phases 15–16)
-* Live visual funnel metrics (`Applied` → `Screening` → `Interview` → `Offer` → `Rejected` → `Withdrawn`).
-* Resume parsing engine extracting 35+ tech skills, contact info, and education with version history counters.
+---
 
-### 3. AI Intelligence Suite (Phases 17–20)
-* **Multi-Factor Match Score**: Role alignment, skill overlap, location/remote preference, and seniority evaluation.
-* **ATS Resume Analyzer**: Keyword coverage score (0–100%), missing keyword highlights, section completeness, and formatting guidance.
-* **AI Cover Letter Generator**: Personalized cover letter generator supporting 6 tone styles.
-* **Technical Interview Coach**: Job-tailored interview prep kits featuring Technical Q&A, Coding Challenges, System Design Scenarios, STAR Behavioral Prompts, and Topics to Review.
+## 🔑 Environment Variables Reference
 
-### 4. Career Growth & Notifications Engine (Phases 21–22)
-* **AI Career Coach**: Personalized 30-60-90 day growth roadmaps, skill gap reports, target salary trajectories, and portfolio project suggestions.
-* **Notification Center**: Persistent notifications, unread count badges, header notification bell dropdown, and automated application follow-up reminders.
+| Variable | Description | Example / Default |
+| -------- | ----------- | ----------------- |
+| `DATABASE_URL` | PostgreSQL or SQLite connection string | `postgresql+asyncpg://user:pass@localhost:5432/jobnova` |
+| `REDIS_URL` | Redis caching connection string | `redis://localhost:6379/0` |
+| `JWT_SECRET` | 64-character secret key for JWT tokens | `your-secure-random-64-char-string` |
+| `ALLOWED_CORS_ORIGINS` | Comma-separated CORS allowed domains | `https://jobnova.vercel.app,http://localhost:3000` |
+| `ENVIRONMENT` | Operating environment (`development` / `production`) | `production` |
 
-### 5. Recruiter Portal & Employer Hiring Engine (Phase 23)
-* Role-Based Access Control (`candidate`, `recruiter`, `admin`).
-* Employer job posting engine and candidate applicant pipeline ranking with real-time AI Fit Scores.
+---
 
-### 6. Non-Functional Engineering & Security (Phases 24–26)
-* **Redis & In-Memory Caching**: TTL caching for job listings (300s), categories (1800s), and match scores (900s) with automated invalidation.
-* **Security & RBAC**: Reusable `@require_role()` authorization dependencies, rate-limiting middleware, audit logging, and security headers (`CSP`, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`).
-* **System Observability**: Diagnostic health endpoint (`GET /health`), `X-Request-ID` correlation tracing, `X-Response-Time` latency headers, and Prometheus telemetry metrics (`GET /metrics`).
+## 🚀 Deployment Instructions
+
+### Deploying Backend (Railway)
+1. Fork or push the repository to GitHub.
+2. In Railway Dashboard, select **New Project → Deploy from GitHub repo**.
+3. Point to the `backend/` directory or root `backend/Dockerfile`.
+4. Add environment variables (`DATABASE_URL`, `JWT_SECRET`, `ALLOWED_CORS_ORIGINS`).
+
+### Deploying Frontend (Vercel)
+1. In Vercel Dashboard, click **New Project** and import your GitHub repository.
+2. Set Framework Preset to **Next.js**.
+3. Set Root Directory to `frontend`.
+4. Add environment variable `NEXT_PUBLIC_API_URL` pointing to your Railway backend URL.
 
 ---
 
@@ -92,7 +108,7 @@ docker-compose up --build
 ```bash
 python -m pytest backend/tests/
 ```
-> **31 passed in 8.42s** (100% pass rate covering ingestion, auth, applications, resumes, AI matching, ATS analyzer, cover letters, interview coach, career coach, notifications, recruiter portal, caching, RBAC, and observability).
+> **31 passed in 7.97s** (100% pass rate covering ingestion, auth, applications, resumes, AI matching, ATS analyzer, cover letters, interview coach, career coach, notifications, recruiter portal, caching, RBAC, and observability).
 
 ### Frontend Production Build
 ```bash
@@ -103,5 +119,5 @@ cd frontend && npm run build
 ---
 
 ## 📄 Release Metadata
-- **Version**: `1.0.0`
+- **Version**: `1.1.0`
 - **License**: MIT

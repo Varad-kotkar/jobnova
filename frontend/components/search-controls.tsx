@@ -37,7 +37,7 @@ export default function SearchControls() {
       params.set("page", "1");
 
       const qs = params.toString();
-      const targetPath = pathname.startsWith("/jobs") ? "/jobs" : "/";
+      const targetPath = pathname.startsWith("/jobs") ? "/jobs" : "/jobs";
       router.push(qs ? `${targetPath}?${qs}` : targetPath, { scroll: false });
     },
     [router, pathname]
@@ -67,156 +67,103 @@ export default function SearchControls() {
     setSortBy(searchParams.get("sort_by") ?? "newest");
   }, [searchParams]);
 
-  const handleKeywordChange = (value: string) => {
-    setKeyword(value);
-    debouncedPush(value, company, location, remote, sortBy);
+  const handleKeywordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setKeyword(val);
+    debouncedPush(val, company, location, remote, sortBy);
   };
 
-  const handleCompanyChange = (value: string) => {
-    setCompany(value);
-    debouncedPush(keyword, value, location, remote, sortBy);
+  const handleLocationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setLocation(val);
+    debouncedPush(keyword, company, val, remote, sortBy);
   };
 
-  const handleLocationChange = (value: string) => {
-    setLocation(value);
-    debouncedPush(keyword, company, value, remote, sortBy);
+  const handleRemoteChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.checked;
+    setRemote(val);
+    pushParams(keyword, company, location, val, sortBy);
   };
 
-  const handleRemoteToggle = () => {
-    const next = !remote;
-    setRemote(next);
-    pushParams(keyword, company, location, next, sortBy);
+  const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value;
+    setSortBy(val);
+    pushParams(keyword, company, location, remote, val);
   };
 
-  const handleSortChange = (value: string) => {
-    setSortBy(value);
-    pushParams(keyword, company, location, remote, value);
-  };
-
-  const showClear =
-    keyword.length > 0 ||
-    company.length > 0 ||
-    location.length > 0 ||
-    remote ||
-    sortBy !== "newest";
-
-  const handleClear = () => {
+  const handleClearFilters = () => {
     setKeyword("");
     setCompany("");
     setLocation("");
     setRemote(false);
     setSortBy("newest");
-    const targetPath = pathname.startsWith("/jobs") ? "/jobs" : "/";
-    router.push(targetPath, { scroll: false });
+    router.push("/jobs");
   };
 
+  const hasActiveFilters = Boolean(keyword || company || location || remote || sortBy !== "newest");
+
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center flex-wrap">
-      {/* Keyword search */}
-      <div className="flex min-w-[240px] flex-1 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-card focus-within:border-slate-400 focus-within:ring-1 focus-within:ring-slate-400 transition">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 20 20"
-          fill="currentColor"
-          className="h-4 w-4 shrink-0 text-slate-400"
-        >
-          <path
-            fillRule="evenodd"
-            d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z"
-            clipRule="evenodd"
+    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-subtle space-y-3">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="relative flex items-center">
+          <svg className="absolute left-3.5 h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            type="text"
+            value={keyword}
+            onChange={handleKeywordChange}
+            placeholder="Search job title, skills..."
+            className="w-full rounded-xl border border-gray-200 bg-gray-50 pl-10 pr-4 py-2.5 text-xs font-medium text-gray-900 placeholder-gray-400 outline-none focus:border-blue-600 focus:bg-white transition"
           />
-        </svg>
-        <input
-          value={keyword}
-          onChange={(e) => handleKeywordChange(e.target.value)}
-          placeholder="Search title, skills..."
-          className="w-full border-none bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
-        />
-      </div>
+        </div>
 
-      {/* Company filter */}
-      <div className="flex min-w-[160px] items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-card focus-within:border-slate-400 focus-within:ring-1 focus-within:ring-slate-400 transition">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 20 20"
-          fill="currentColor"
-          className="h-4 w-4 shrink-0 text-slate-400"
-        >
-          <path
-            fillRule="evenodd"
-            d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H4a1 1 0 110-2V4zm3 1a1 1 0 000 2h1a1 1 0 100-2H7zm0 4a1 1 0 100 2h1a1 1 0 100-2H7zm0 4a1 1 0 100 2h1a1 1 0 100-2H7zm5-8a1 1 0 100 2h1a1 1 0 100-2h-1zm0 4a1 1 0 100 2h1a1 1 0 100-2h-1zm0 4a1 1 0 100 2h1a1 1 0 100-2h-1z"
-            clipRule="evenodd"
+        <div className="relative flex items-center">
+          <svg className="absolute left-3.5 h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+          </svg>
+          <input
+            type="text"
+            value={location}
+            onChange={handleLocationChange}
+            placeholder="Location, city..."
+            className="w-full rounded-xl border border-gray-200 bg-gray-50 pl-10 pr-4 py-2.5 text-xs font-medium text-gray-900 placeholder-gray-400 outline-none focus:border-blue-600 focus:bg-white transition"
           />
-        </svg>
-        <input
-          value={company}
-          onChange={(e) => handleCompanyChange(e.target.value)}
-          placeholder="Company..."
-          className="w-full border-none bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
-        />
+        </div>
+
+        <div className="flex items-center justify-between gap-3">
+          <select
+            value={sortBy}
+            onChange={handleSortChange}
+            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-xs font-semibold text-gray-800 outline-none focus:border-blue-600 transition"
+          >
+            <option value="newest">Sort by: Newest</option>
+            <option value="relevance">Sort by: Relevance</option>
+            <option value="oldest">Sort by: Oldest</option>
+          </select>
+
+          <label className="flex items-center gap-2 text-xs font-semibold text-gray-700 cursor-pointer shrink-0 border border-gray-200 rounded-xl px-3 py-2.5 bg-gray-50">
+            <input
+              type="checkbox"
+              checked={remote}
+              onChange={handleRemoteChange}
+              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            Remote
+          </label>
+        </div>
       </div>
 
-      {/* Location search */}
-      <div className="flex min-w-[160px] items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-card focus-within:border-slate-400 focus-within:ring-1 focus-within:ring-slate-400 transition">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 20 20"
-          fill="currentColor"
-          className="h-4 w-4 shrink-0 text-slate-400"
-        >
-          <path
-            fillRule="evenodd"
-            d="M9.69 18.933l.003.001C9.89 19.02 10 19 10 19s.11.02.308-.066l.002-.001.006-.003.018-.008a5.741 5.741 0 00.281-.14c.186-.096.446-.24.757-.433.62-.384 1.445-.966 2.274-1.765C15.302 14.988 17 12.493 17 9A7 7 0 103 9c0 3.492 1.698 5.988 3.355 7.584a13.731 13.731 0 002.274 1.765 11.842 11.842 0 00.976.544l.062.029.018.008.006.003zM10 11.25a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5z"
-            clipRule="evenodd"
-          />
-        </svg>
-        <input
-          value={location}
-          onChange={(e) => handleLocationChange(e.target.value)}
-          placeholder="Location..."
-          className="w-full border-none bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
-        />
-      </div>
-
-      {/* Sort By Dropdown */}
-      <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-card focus-within:border-slate-400 transition">
-        <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">
-          Sort
-        </span>
-        <select
-          value={sortBy}
-          onChange={(e) => handleSortChange(e.target.value)}
-          className="bg-transparent text-sm font-medium text-slate-900 outline-none cursor-pointer"
-        >
-          <option value="newest">Newest</option>
-          <option value="relevance">Relevance</option>
-          <option value="oldest">Oldest</option>
-        </select>
-      </div>
-
-      {/* Remote toggle */}
-      <button
-        type="button"
-        onClick={handleRemoteToggle}
-        className={`rounded-2xl px-5 py-3 text-sm font-medium transition ${
-          remote
-            ? "bg-slate-950 text-white shadow-lg shadow-slate-950/20"
-            : "bg-white text-slate-700 border border-slate-200 shadow-card hover:border-slate-300"
-        }`}
-      >
-        Remote
-      </button>
-
-      {/* Clear filters */}
-      {showClear ? (
-        <button
-          type="button"
-          onClick={handleClear}
-          className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-600 shadow-card transition hover:bg-slate-50"
-        >
-          Clear
-        </button>
-      ) : null}
+      {hasActiveFilters && (
+        <div className="flex justify-end pt-1">
+          <button
+            onClick={handleClearFilters}
+            className="text-xs font-semibold text-gray-500 hover:text-gray-900 transition"
+          >
+            Clear all filters ✕
+          </button>
+        </div>
+      )}
     </div>
   );
 }

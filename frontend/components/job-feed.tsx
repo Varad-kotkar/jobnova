@@ -92,24 +92,23 @@ export default async function JobFeed({ searchParams }: JobFeedProps) {
     (!!searchParams.sort_by && searchParams.sort_by !== "newest");
 
   return (
-    <section>
-      <div className="mb-6 flex items-center justify-between">
+    <section className="space-y-6">
+      <div className="flex items-center justify-between border-b border-gray-100 pb-3">
         <div>
-          <p className="text-sm font-medium uppercase tracking-[0.3em] text-slate-500">
-            {hasActiveFilters ? "Search results" : "Latest listings"}
+          <p className="text-xs font-bold uppercase tracking-wider text-gray-400">
+            {hasActiveFilters ? "Search Results" : "Live Directory Feed"}
           </p>
-
-          <h2 className="text-2xl font-semibold text-slate-950">
+          <h2 className="text-lg font-extrabold text-gray-900">
             {pagination.total > 0
-              ? `${pagination.total} job${pagination.total === 1 ? "" : "s"} found`
-              : "Jobs for you"}
+              ? `${pagination.total} Verified Role${pagination.total === 1 ? "" : "s"} Available`
+              : "Hiring Listings"}
           </h2>
         </div>
       </div>
 
       {items.length > 0 ? (
         <>
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {items.map((job: Job) => (
               <JobCard
                 key={job.id}
@@ -126,7 +125,7 @@ export default async function JobFeed({ searchParams }: JobFeedProps) {
           </div>
 
           {pagination.total_pages > 1 && (
-            <div className="mt-8">
+            <div className="mt-8 pt-4 border-t border-gray-100">
               <Pagination
                 currentPage={pagination.page}
                 totalPages={pagination.total_pages}
@@ -137,39 +136,42 @@ export default async function JobFeed({ searchParams }: JobFeedProps) {
           )}
         </>
       ) : (
-        <div className="mt-4 flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={1.5}
-            stroke="currentColor"
-            className="mb-4 h-12 w-12 text-slate-300"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3A2.25 2.25 0 008.25 5.25v.894m7.5 0a48.667 48.667 0 00-7.5 0M12 12.75h.008v.008H12v-.008z"
-            />
-          </svg>
+        <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center shadow-subtle space-y-4">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600 font-bold text-xl">
+            🔍
+          </div>
 
-          <p className="text-base font-semibold text-slate-800">
-            No matching jobs found
-          </p>
+          <div>
+            <h3 className="text-base font-bold text-gray-900">No matching listings found</h3>
+            <p className="mt-1 text-xs text-gray-500 max-w-sm mx-auto">
+              {hasActiveFilters
+                ? "No active listings matched your specific filter keywords. Try searching for broader terms or exploring popular skill categories."
+                : "Continuous scraper pipeline is active. New listings will automatically appear here."}
+            </p>
+          </div>
 
-          <p className="mt-1 max-w-sm text-sm text-slate-500">
-            {hasActiveFilters
-              ? "We couldn't find any jobs matching your active search criteria. Try removing filters or modifying keywords."
-              : "New job listings will automatically appear here as soon as they are ingested."}
-          </p>
+          <div className="pt-2 flex flex-wrap justify-center gap-2 text-xs">
+            <span className="font-semibold text-gray-400 self-center">Try searching:</span>
+            {["Frontend", "Backend", "Full Stack", "Python", "React", "Remote"].map((term) => (
+              <Link
+                key={term}
+                href={`/jobs?keyword=${encodeURIComponent(term.toLowerCase())}`}
+                className="rounded-lg bg-gray-50 px-3 py-1 font-semibold text-gray-700 border border-gray-200 hover:border-blue-600 hover:text-blue-600 transition"
+              >
+                {term}
+              </Link>
+            ))}
+          </div>
 
           {hasActiveFilters && (
-            <Link
-              href="/jobs"
-              className="mt-5 rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-slate-800 transition"
-            >
-              Clear All Filters
-            </Link>
+            <div className="pt-2">
+              <Link
+                href="/jobs"
+                className="inline-block rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-subtle hover:bg-blue-700 transition"
+              >
+                Reset All Search Filters
+              </Link>
+            </div>
           )}
         </div>
       )}

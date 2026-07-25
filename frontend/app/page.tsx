@@ -31,178 +31,142 @@ export default async function HomePage(props: HomePageProps) {
   const trustedCompanies = ["Stripe", "Vercel", "Linear", "Figma", "Notion", "Datadog"];
 
   return (
-    <div className="space-y-16 pb-16">
-      {/* Hero Section (Stripe & Linear Polish) */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-slate-950 via-slate-900 to-indigo-950 text-white pt-16 pb-24 px-4 sm:px-6 rounded-b-[3rem] shadow-2xl">
-        {/* Glowing Background Orbs */}
-        <div className="absolute top-10 left-1/2 -translate-x-1/2 w-[800px] h-[350px] bg-indigo-600/20 blur-[120px] rounded-full pointer-events-none" />
-
-        <div className="relative mx-auto max-w-5xl text-center space-y-6">
-          <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-4 py-1.5 text-xs font-semibold text-indigo-300 backdrop-blur-md">
-            <span className="flex h-2 w-2 rounded-full bg-indigo-400 animate-ping" />
-            JobNova Platform 2.0 • Real-time Job Scraper Active
+    <div className="space-y-16 pb-16 bg-white">
+      {/* Hero Section */}
+      <section className="border-b border-gray-100 bg-gray-50/50 py-16 px-4 sm:px-6">
+        <div className="mx-auto max-w-4xl text-center space-y-6">
+          <div className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3.5 py-1 text-xs font-semibold text-blue-700">
+            <span className="flex h-2 w-2 rounded-full bg-blue-600" />
+            JobNova Platform v1.1 • Real-time Candidate & Recruiter Engine
           </div>
 
-          <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight leading-[1.15] text-white max-w-3xl mx-auto">
-            Find Your Next <span className="bg-gradient-to-r from-indigo-400 via-sky-300 to-emerald-400 bg-clip-text text-transparent">Dream Job</span> in Tech
+          <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-gray-900 leading-tight">
+            The Intelligent Platform for <span className="text-blue-600">Tech Hiring & Growth</span>
           </h1>
 
-          <p className="max-w-2xl mx-auto text-base sm:text-lg text-slate-300 font-normal leading-relaxed">
-            Directly scraped from top engineering ATS portals (Greenhouse, Lever, Ashby). No dead links or fake listings.
+          <p className="max-w-2xl mx-auto text-base text-gray-600 font-normal leading-relaxed">
+            Indexed directly from verified Greenhouse, Lever, and Ashby portals. Discover engineering roles, evaluate AI fit scores, and build 30-60-90 day career roadmaps.
           </p>
 
           {/* Embedded Search Control Bar */}
-          <div className="mx-auto max-w-4xl pt-4">
-            <div className="rounded-3xl border border-slate-700/60 bg-slate-900/80 p-3 backdrop-blur-xl shadow-2xl text-left">
-              <Suspense fallback={null}>
-                <SearchControls />
-              </Suspense>
-            </div>
+          <div className="mx-auto max-w-3xl pt-2">
+            <Suspense fallback={null}>
+              <SearchControls />
+            </Suspense>
           </div>
 
-          {/* Popular Searches Pills */}
-          <div className="flex flex-wrap items-center justify-center gap-2 pt-2 text-xs text-slate-400">
-            <span className="font-semibold text-slate-300">Popular:</span>
+          {/* Popular Tag Pills */}
+          <div className="flex flex-wrap items-center justify-center gap-2 pt-2 text-xs">
+            <span className="font-semibold text-gray-400">Popular:</span>
             {popularSearches.map((item) => (
               <Link
                 key={item.label}
-                href={`/jobs?keyword=${encodeURIComponent(item.query)}` as any}
-                className="rounded-full bg-slate-800/80 px-3.5 py-1 text-slate-300 hover:bg-slate-700 hover:text-white transition border border-slate-700/50"
+                href={`/jobs?keyword=${encodeURIComponent(item.query)}`}
+                className="rounded-lg bg-white px-3 py-1 font-semibold text-gray-700 border border-gray-200 hover:border-blue-500 hover:text-blue-600 transition shadow-subtle"
               >
                 {item.label}
               </Link>
             ))}
           </div>
-
-          {/* Live Statistics Counter Bar */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-10 border-t border-slate-800/80 max-w-4xl mx-auto text-center">
-            <div>
-              <p className="text-2xl sm:text-3xl font-extrabold text-white">10,000+</p>
-              <p className="text-xs text-slate-400 mt-0.5 font-medium">Active Job Roles</p>
-            </div>
-            <div>
-              <p className="text-2xl sm:text-3xl font-extrabold text-white">500+</p>
-              <p className="text-xs text-slate-400 mt-0.5 font-medium">Verified Tech Companies</p>
-            </div>
-            <div>
-              <p className="text-2xl sm:text-3xl font-extrabold text-white">100%</p>
-              <p className="text-xs text-slate-400 mt-0.5 font-medium">Verified Sources</p>
-            </div>
-            <div>
-              <p className="text-2xl sm:text-3xl font-extrabold text-white">24/7</p>
-              <p className="text-xs text-slate-400 mt-0.5 font-medium">Automated Ingestion</p>
-            </div>
-          </div>
         </div>
       </section>
 
-      {/* Trusted Companies Logo Wall */}
+      {/* Trusted Employer Bar */}
       <section className="mx-auto max-w-7xl px-4 sm:px-6">
-        <p className="text-center text-xs font-bold uppercase tracking-[0.3em] text-slate-400 mb-6">
-          Scraping verified job portals from market leaders
+        <p className="text-center text-xs font-bold uppercase tracking-wider text-gray-400 mb-6">
+          Hiring opportunities from top engineering teams
         </p>
-        <div className="flex flex-wrap items-center justify-center gap-8 sm:gap-12 opacity-75 grayscale hover:grayscale-0 transition-all">
-          {trustedCompanies.map((comp) => (
-            <span key={comp} className="text-lg font-extrabold tracking-tight text-slate-800 font-mono">
-              {comp}
+        <div className="flex flex-wrap items-center justify-center gap-8 text-lg font-bold text-gray-400 opacity-80">
+          {trustedCompanies.map((name) => (
+            <span key={name} className="hover:text-gray-900 transition cursor-default">
+              {name}
             </span>
           ))}
         </div>
       </section>
 
-      {/* Categories Grid */}
+      {/* AI Features Spotlight */}
       <section className="mx-auto max-w-7xl px-4 sm:px-6">
-        <div className="mb-8 text-center sm:text-left">
-          <h2 className="text-2xl font-bold text-slate-950">Explore by Category</h2>
-          <p className="text-sm text-slate-500 mt-1">Browse open roles by domain and specialization.</p>
+        <div className="grid gap-6 sm:grid-cols-3">
+          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-subtle space-y-2">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 font-bold text-lg">
+              ⚡
+            </div>
+            <h3 className="text-base font-bold text-gray-900">AI Match Engine</h3>
+            <p className="text-xs text-gray-500 leading-relaxed">
+              Multi-factor candidate fit evaluation across skill overlap, role alignment, location preference, and seniority.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-subtle space-y-2">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 font-bold text-lg">
+              🎯
+            </div>
+            <h3 className="text-base font-bold text-gray-900">ATS Resume Optimizer</h3>
+            <p className="text-xs text-gray-500 leading-relaxed">
+              Comprehensive keyword coverage analysis, missing section detection, and actionable formatting guidance.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-subtle space-y-2">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50 text-purple-600 font-bold text-lg">
+              🚀
+            </div>
+            <h3 className="text-base font-bold text-gray-900">30-60-90 Day Career Coach</h3>
+            <p className="text-xs text-gray-500 leading-relaxed">
+              Synthesizes resume skills, market trends, and application logs into personalized step-by-step career growth roadmaps.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Category Explorer Cards */}
+      <section className="mx-auto max-w-7xl px-4 sm:px-6 space-y-6">
+        <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Explore Job Categories</h2>
+            <p className="text-xs text-gray-500 mt-0.5">Find roles across key technology departments</p>
+          </div>
+          <Link href="/categories" className="text-xs font-bold text-blue-600 hover:underline">
+            View All Categories →
+          </Link>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-3">
           {categories.map((cat) => (
             <Link
               key={cat.name}
-              href={`/jobs?keyword=${encodeURIComponent(cat.name.split(" ")[0])}` as any}
-              className="flex items-center gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-card hover:border-slate-300 hover:shadow-lg transition group"
+              href={`/jobs?keyword=${encodeURIComponent(cat.name.split(" ")[0])}`}
+              className="group rounded-2xl border border-gray-200 bg-white p-5 shadow-subtle hover:border-gray-300 transition flex items-center justify-between"
             >
-              <span className="text-3xl group-hover:scale-110 transition-transform">{cat.icon}</span>
-              <div>
-                <h3 className="font-bold text-slate-950 group-hover:text-indigo-600 transition">{cat.name}</h3>
-                <p className="text-xs text-slate-500">{cat.count}</p>
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">{cat.icon}</span>
+                <div>
+                  <h3 className="text-xs font-bold text-gray-900 group-hover:text-blue-600 transition">{cat.name}</h3>
+                  <p className="text-[11px] text-gray-500">{cat.count}</p>
+                </div>
               </div>
+              <span className="text-gray-400 group-hover:text-blue-600 transition">→</span>
             </Link>
           ))}
         </div>
       </section>
 
-      {/* Main Job Feed Section */}
-      <section className="mx-auto max-w-7xl px-4 sm:px-6">
-        <JobFeed searchParams={searchParams} />
-      </section>
-
-      {/* AI Features Teaser Banner */}
-      <section className="mx-auto max-w-7xl px-4 sm:px-6">
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-900 via-slate-900 to-slate-950 p-8 sm:p-12 text-white shadow-2xl">
-          <div className="max-w-2xl space-y-4">
-            <span className="rounded-full bg-indigo-500/20 px-3.5 py-1 text-xs font-semibold text-indigo-300 border border-indigo-500/30">
-              Coming Soon • AI Resume Suite
-            </span>
-            <h2 className="text-3xl font-extrabold tracking-tight text-white">
-              Match Your Resume to Target Jobs Automatically
-            </h2>
-            <p className="text-sm text-slate-300 leading-relaxed">
-              JobNova AI analyzes job specifications, computes match scores for your experience, and generates custom cover letters tailored for recruiters.
-            </p>
-            <button
-              type="button"
-              className="rounded-2xl bg-white px-6 py-3 text-xs font-bold text-slate-950 shadow-lg hover:bg-slate-100 transition"
-            >
-              Join AI Waitlist →
-            </button>
+      {/* Live Job Feed */}
+      <section className="mx-auto max-w-7xl px-4 sm:px-6 space-y-6">
+        <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Latest Engineering Listings</h2>
+            <p className="text-xs text-gray-500 mt-0.5">Updated continuously from active ATS portals</p>
           </div>
-        </div>
-      </section>
-
-      {/* Testimonials & FAQs Section */}
-      <section className="mx-auto max-w-7xl px-4 sm:px-6 space-y-12">
-        <div className="text-center max-w-2xl mx-auto">
-          <h2 className="text-2xl font-bold text-slate-950">Frequently Asked Questions</h2>
-          <p className="text-sm text-slate-500 mt-1">Everything you need to know about JobNova listing sources.</p>
+          <Link href="/jobs" className="text-xs font-bold text-blue-600 hover:underline">
+            View All Listings ({">"}250) →
+          </Link>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 max-w-4xl mx-auto">
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-card space-y-2">
-            <h3 className="font-bold text-slate-950 text-base">How does JobNova scrape listings?</h3>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              JobNova continuously queries official ATS APIs and public careers pages for top tech companies (Greenhouse, Lever, Ashby).
-            </p>
-          </div>
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-card space-y-2">
-            <h3 className="font-bold text-slate-950 text-base">Is JobNova free for candidate job seekers?</h3>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Yes, 100% free. Candidates can search, bookmark roles, track applications, and build their profile at zero cost.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Newsletter Card */}
-      <section className="mx-auto max-w-4xl px-4 sm:px-6">
-        <div className="rounded-3xl border border-slate-200 bg-white p-8 sm:p-10 shadow-card text-center space-y-4">
-          <h2 className="text-2xl font-bold text-slate-950">Get Daily Tech Job Alerts</h2>
-          <p className="text-xs text-slate-500 max-w-md mx-auto">
-            Receive personalized remote and high-growth job postings directly in your inbox every morning.
-          </p>
-          <div className="flex max-w-md mx-auto gap-2">
-            <input
-              type="email"
-              placeholder="Enter your work email..."
-              className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-xs text-slate-900 outline-none focus:border-slate-950"
-            />
-            <button className="rounded-xl bg-slate-950 px-5 py-2.5 text-xs font-semibold text-white shadow-md hover:bg-slate-800 transition">
-              Subscribe Free
-            </button>
-          </div>
-        </div>
+        <Suspense fallback={<div className="py-10 text-center text-xs font-semibold text-gray-500">Loading active job feed...</div>}>
+          <JobFeed searchParams={searchParams} />
+        </Suspense>
       </section>
     </div>
   );
