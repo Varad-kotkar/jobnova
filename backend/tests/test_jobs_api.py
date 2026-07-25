@@ -6,7 +6,7 @@ import uuid
 from app.models.company import Company
 from app.models.source import Source
 from app.models.job import Job
-from app.routers.jobs import list_jobs, get_job
+from app.routers.jobs import list_jobs, get_job_by_id_or_slug
 from fastapi import HTTPException
 
 
@@ -66,4 +66,4 @@ async def test_jobs_list_and_filters(async_session):
 @pytest.mark.anyio
 async def test_get_job_not_found(async_session):
     with pytest.raises(HTTPException):
-        await get_job("non-existent-slug", session=async_session)
+        await get_job_by_id_or_slug("non-existent-slug", session=async_session)

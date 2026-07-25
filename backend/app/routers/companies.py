@@ -9,6 +9,7 @@ from ..services.company_service import CompanyService
 router = APIRouter(prefix="/api/companies", tags=["companies"])
 
 
+@router.get("", status_code=status.HTTP_200_OK)
 @router.get("/", status_code=status.HTTP_200_OK)
 async def list_companies(
     search: Optional[str] = Query(None, alias="search"),

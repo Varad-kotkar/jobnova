@@ -115,7 +115,8 @@ class CategoryService:
         slug: str,
         page: int = 1,
         page_size: int = 25,
-    ) -> Tuple[Optional[Dict[str, Any]], List[Job], Dict[str, Any]]:
+        sort_by: str = "newest",
+    ) -> Optional[Dict[str, Any]]:
         category_meta = await CategoryService.get_category_by_slug(session, slug)
         if not category_meta:
             return None, [], {}

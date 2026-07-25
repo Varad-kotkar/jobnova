@@ -1,4 +1,5 @@
 import Link from "next/link";
+import CompanyControls from "@/components/company-controls";
 import { getApiUrl } from "@/lib/api";
 
 interface CompanyItem {
@@ -53,39 +54,8 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
         </p>
       </div>
 
-      {/* Controls Bar */}
-      <div className="flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
-        <div className="flex min-w-[280px] flex-1 items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 shadow-subtle focus-within:border-blue-600 focus-within:bg-white transition">
-          <svg className="h-4 w-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          <form method="GET" className="w-full">
-            <input
-              name="search"
-              defaultValue={search}
-              placeholder="Search company by name..."
-              className="w-full bg-transparent text-xs text-gray-900 outline-none placeholder:text-gray-400"
-            />
-          </form>
-        </div>
-
-        <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 shadow-subtle">
-          <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Sort</span>
-          <form method="GET" className="inline">
-            {search && <input type="hidden" name="search" value={search} />}
-            <select
-              name="sort"
-              defaultValue={sort}
-              onChange={(e) => e.target.form?.submit()}
-              className="bg-transparent text-xs font-semibold text-gray-900 outline-none cursor-pointer"
-            >
-              <option value="jobs">Most Open Jobs</option>
-              <option value="name">Alphabetical (A-Z)</option>
-              <option value="recent">Recently Posted</option>
-            </select>
-          </form>
-        </div>
-      </div>
+      {/* Client Controls Bar */}
+      <CompanyControls initialSearch={search} initialSort={sort} />
 
       {/* Companies Grid */}
       <section className="space-y-4">

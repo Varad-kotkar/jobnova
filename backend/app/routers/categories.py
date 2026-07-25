@@ -10,6 +10,7 @@ from ..services.category_service import CategoryService
 router = APIRouter(prefix="/api/categories", tags=["categories"])
 
 
+@router.get("", status_code=status.HTTP_200_OK)
 @router.get("/", status_code=status.HTTP_200_OK)
 async def list_categories(
     search: Optional[str] = Query(None),
@@ -28,7 +29,7 @@ async def list_categories(
 
 
 @router.get("/{slug}", status_code=status.HTTP_200_OK)
-async def get_category(
+async def get_category_by_slug(
     slug: str,
     session: AsyncSession = Depends(get_session),
 ) -> Dict[str, Any]:
@@ -36,47 +37,39 @@ async def get_category(
     if not cat:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Category '{slug}' not found",
+            detail=f"Category with slug '{slug}' not found",
         )
     return cat
 
 
-@router.get("/{slug}/jobs", response_model=Dict[str, Any], status_code=status.HTTP_200_OK)
-async def get_category_jobs(
+@router.get("/{slug}/jobs", response_model=JobListResponse, status_code=status.HTTP_200_OK)
+async def list_jobs_by_category(
     slug: str,
     page: int = Query(1, ge=1),
-    page_size: int = Query(25, ge=1, le=100),
+    page_size: int = Query(12, ge=1, le=100),
+    sort_by: str = Query("newest", pattern="^(newest|oldest|relevance)$"),
     session: AsyncSession = Depends(get_session),
-) -> Dict[str, Any]:
-    category_meta, jobs, meta = await CategoryService.get_category_jobs(
+):
+    result = await CategoryService.get_category_jobs(
         session=session,
         slug=slug,
         page=page,
         page_size=page_size,
+        sort_by=sort_by,
     )
-
-    if not category_meta:
+    if not result:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Category '{slug}' not found",
+            detail=f"Category with slug '{slug}' not found",
         )
 
-    return {
-        "category": category_meta,
-        "items": [
-            JobResponse(
-                id=job.id,
-                slug=job.slug,
-                title=job.title,
-                description=job.description,
-                location=job.location,
-                company=job.company.name,
-                apply_url=job.apply_url,
-                skills=job.skills,
-                remote=job.remote,
-                published_at=job.published_at,
-            ).model_dump(mode="json")
-            for job in jobs
-        ],
-        "pagination": meta,
-    }
+    job_responses = [JobResponse.from_orm_model(job) for job in result["jobs"]]
+    meta = PaginationMeta(
+        page=result["page"],
+        page_size=result["page_size"],
+        total=result["total"],
+        total_pages=result["total_pages"],
+        has_next=result["has_next"],
+        has_previous=result["has_previous"],
+    )
+    return JobListResponse(items=job_responses, pagination=meta)

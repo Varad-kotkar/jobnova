@@ -1,8 +1,45 @@
+import re
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, Tuple
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def sanitize_async_database_url(url: str) -> Tuple[str, Dict[str, Any]]:
+    """
+    Sanitizes database URL for asyncpg / SQLAlchemy async engine.
+
+    1. Converts legacy postgres:// or postgresql:// to postgresql+asyncpg://
+    2. Strips sslmode parameter from query string because asyncpg does not accept sslmode keyword arg.
+    3. Returns connect_args={"ssl": True} if sslmode=require was specified in the original URL string.
+    """
+    if not isinstance(url, str) or not url.strip():
+        return url, {}
+
+    connect_args: Dict[str, Any] = {}
+    clean_url = url.strip()
+
+    # Convert driver prefix for asyncpg
+    if clean_url.startswith("postgres://"):
+        clean_url = clean_url.replace("postgres://", "postgresql+asyncpg://", 1)
+    elif clean_url.startswith("postgresql://") and not clean_url.startswith("postgresql+"):
+        clean_url = clean_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+    # Check if sslmode query parameter is present in URL
+    if "sslmode=" in clean_url:
+        sslmode_match = re.search(r"[?&]sslmode=([^&]+)", clean_url)
+        if sslmode_match:
+            mode_val = sslmode_match.group(1).lower()
+            if mode_val in ("require", "prefer", "verify-ca", "verify-full", "true", "1"):
+                connect_args["ssl"] = True
+
+        # Remove sslmode=... parameter cleanly from URL
+        clean_url = re.sub(r"([?&])sslmode=[^&]*(&|$)", r"\1", clean_url)
+        clean_url = clean_url.rstrip("?&")
+        clean_url = clean_url.replace("?&", "?")
+
+    return clean_url, connect_args
 
 
 class DatabaseConfig(BaseSettings):
@@ -12,10 +49,8 @@ class DatabaseConfig(BaseSettings):
     @classmethod
     def assemble_db_connection(cls, v: Any) -> str:
         if isinstance(v, str):
-            if v.startswith("postgres://"):
-                return v.replace("postgres://", "postgresql+asyncpg://", 1)
-            if v.startswith("postgresql://") and not v.startswith("postgresql+"):
-                return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+            clean_url, _ = sanitize_async_database_url(v)
+            return clean_url
         return v
 
     model_config = SettingsConfigDict(
@@ -26,4 +61,5 @@ class DatabaseConfig(BaseSettings):
     )
 
 
-database_settings = DatabaseConfig()
+database_settings = DatabaseConfig()
+database_config = database_settings

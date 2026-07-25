@@ -13,6 +13,7 @@ from ..services.job_query import query_jobs
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 
 
+@router.get("", response_model=JobListResponse, status_code=status.HTTP_200_OK)
 @router.get("/", response_model=JobListResponse, status_code=status.HTTP_200_OK)
 async def list_jobs(
     page: int = Query(1, ge=1),
@@ -41,53 +42,33 @@ async def list_jobs(
         sort_by=sort_by,
     )
 
-    response_data = JobListResponse(
-        items=[
-            JobResponse(
-                id=job.id,
-                slug=job.slug,
-                title=job.title,
-                description=job.description,
-                location=job.location,
-                company=job.company.name,
-                apply_url=job.apply_url,
-                skills=job.skills,
-                remote=job.remote,
-                published_at=job.published_at,
-            )
-            for job in jobs
-        ],
-        pagination=PaginationMeta(
-            page=meta["page"],
-            page_size=meta["page_size"],
-            total=meta["total"],
-            total_pages=meta["total_pages"],
-            has_next=meta["has_next"],
-            has_previous=meta["has_previous"],
-        ),
-    )
-
-    await CacheManager.set(cache_key, response_data.model_dump(mode="json"), ttl_seconds=300)
-    return response_data
+    job_responses = [JobResponse.from_orm_model(job) for job in jobs]
+    meta_response = PaginationMeta(**meta)
+    res = JobListResponse(items=job_responses, pagination=meta_response)
+    await CacheManager.set(cache_key, res.dict(), ttl_seconds=300)
+    return res
 
 
-@router.get("/{slug}", response_model=JobResponse, status_code=status.HTTP_200_OK)
-async def get_job(slug: str, session: AsyncSession = Depends(get_session)) -> JobResponse:
-    query = select(Job).where(Job.slug == slug).options(joinedload(Job.company))
-    result = await session.execute(query)
+@router.get("/{id_or_slug}", response_model=JobResponse, status_code=status.HTTP_200_OK)
+async def get_job_by_id_or_slug(
+    id_or_slug: str,
+    session: AsyncSession = Depends(get_session),
+) -> JobResponse:
+    # 1. Primary lookup by exact slug
+    stmt = select(Job).options(joinedload(Job.company)).where(Job.slug == id_or_slug.lower())
+    result = await session.execute(stmt)
     job = result.scalars().first()
-    if job is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
 
-    return JobResponse(
-        id=job.id,
-        slug=job.slug,
-        title=job.title,
-        description=job.description,
-        location=job.location,
-        company=job.company.name,
-        apply_url=job.apply_url,
-        skills=job.skills,
-        remote=job.remote,
-        published_at=job.published_at,
-    )
+    # 2. Fallback lookup by exact id if slug lookup missed
+    if not job:
+        stmt_id = select(Job).options(joinedload(Job.company)).where(Job.id == id_or_slug)
+        result_id = await session.execute(stmt_id)
+        job = result_id.scalars().first()
+
+    if not job:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Job with identifier or slug '{id_or_slug}' not found",
+        )
+
+    return JobResponse.from_orm_model(job)

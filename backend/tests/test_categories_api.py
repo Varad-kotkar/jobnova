@@ -7,7 +7,7 @@ from app.models.company import Company
 from app.models.source import Source
 from app.models.job import Job
 from app.services.category_classifier import CategoryClassifier
-from app.routers.categories import list_categories, get_category, get_category_jobs
+from app.routers.categories import list_categories, get_category_by_slug, list_jobs_by_category
 
 
 @pytest.mark.anyio
@@ -45,16 +45,16 @@ async def test_category_classification_and_api(async_session):
     assert len(categories) >= 1
 
     # Get frontend-development category
-    cat_detail = await get_category("frontend-development", session=async_session)
+    cat_detail = await get_category_by_slug("frontend-development", session=async_session)
     assert cat_detail["slug"] == "frontend-development"
 
     # Get category jobs
-    jobs_response = await get_category_jobs("frontend-development", page=1, page_size=25, session=async_session)
-    assert len(jobs_response["items"]) >= 1
+    jobs_response = await list_jobs_by_category("frontend-development", page=1, page_size=25, sort_by="newest", session=async_session)
+    assert len(jobs_response.items) >= 1
 
 
 @pytest.mark.anyio
 async def test_category_not_found(async_session):
     with pytest.raises(HTTPException) as exc_info:
-        await get_category("non-existent-category-slug-999", session=async_session)
+        await get_category_by_slug("non-existent-category-slug-999", session=async_session)
     assert exc_info.value.status_code == 404
