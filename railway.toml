@@ -1,7 +1,11 @@
 [build]
-builder = "RAILPACK"
+builder = "DOCKERFILE"
 
 [deploy]
+<<<<<<< HEAD
 startCommand = "sh -c 'alembic upgrade head || true; uvicorn app.main:app --host 0.0.0.0 --port ${PORT}'"
+=======
+startCommand = "sh -c 'uvicorn app.main:app --host 0.0.0.0 --port $PORT'"
+>>>>>>> 403d68921f119e62ac4a47e55957b62b60b192e4
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
