@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from time import perf_counter
 from typing import List, Optional
@@ -14,7 +14,7 @@ from ..database.session import get_async_sessionmaker
 from ..models.job_listing import JobListing
 from ..models.plugin_run import PluginRun
 from ..plugins.base import BasePlugin, RetryablePluginError
-from ..services.ingestion import ingest_job_listings
+from ..services.ingestion import ingest_job_listings, IngestionStats
 from .plugin_loader import load_plugins
 
 logger = logging.getLogger(__name__)
@@ -28,15 +28,20 @@ class PluginExecutionSummary:
     duration_ms: Optional[int]
     jobs_fetched: int
     jobs_inserted: int
+    jobs_updated: int
+    jobs_duplicates: int
     success: bool
     error_message: Optional[str] = None
 
 
 @dataclass(frozen=True)
 class OrchestratorSummary:
+    inserted: int
+    updated: int
+    duplicates: int
+    errors: List[str]
     plugin_runs: List[PluginExecutionSummary]
     total_jobs_fetched: int
-    total_jobs_inserted: int
 
 
 class PluginOrchestrator:
@@ -57,8 +62,11 @@ class PluginOrchestrator:
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         summaries: List[PluginExecutionSummary] = []
+        total_inserted = 0
+        total_updated = 0
+        total_duplicates = 0
         total_jobs_fetched = 0
-        total_jobs_inserted = 0
+        all_errors: List[str] = []
 
         for plugin, result in zip(self.plugins, results):
             if isinstance(result, Exception):
@@ -66,6 +74,8 @@ class PluginOrchestrator:
                     "Unexpected orchestrator error",
                     extra={"plugin": plugin.plugin_name},
                 )
+                err_msg = f"Plugin '{plugin.plugin_name}' failed: {result}"
+                all_errors.append(err_msg)
                 summaries.append(
                     PluginExecutionSummary(
                         plugin_name=plugin.plugin_name,
@@ -74,6 +84,8 @@ class PluginOrchestrator:
                         duration_ms=0,
                         jobs_fetched=0,
                         jobs_inserted=0,
+                        jobs_updated=0,
+                        jobs_duplicates=0,
                         success=False,
                         error_message=str(result),
                     )
@@ -82,21 +94,31 @@ class PluginOrchestrator:
 
             summaries.append(result)
             total_jobs_fetched += result.jobs_fetched
-            total_jobs_inserted += result.jobs_inserted
+            total_inserted += result.jobs_inserted
+            total_updated += result.jobs_updated
+            total_duplicates += result.jobs_duplicates
+            if result.error_message:
+                all_errors.append(f"[{plugin.plugin_name}] {result.error_message}")
 
         logger.info(
             "Orchestration summary",
             extra={
                 "plugins": len(summaries),
                 "total_jobs_fetched": total_jobs_fetched,
-                "total_jobs_inserted": total_jobs_inserted,
+                "total_inserted": total_inserted,
+                "total_updated": total_updated,
+                "total_duplicates": total_duplicates,
+                "total_errors": len(all_errors),
             },
         )
 
         return OrchestratorSummary(
+            inserted=total_inserted,
+            updated=total_updated,
+            duplicates=total_duplicates,
+            errors=all_errors,
             plugin_runs=summaries,
             total_jobs_fetched=total_jobs_fetched,
-            total_jobs_inserted=total_jobs_inserted,
         )
 
     async def _execute_plugin(self, plugin: BasePlugin) -> PluginExecutionSummary:
@@ -104,6 +126,8 @@ class PluginOrchestrator:
         run_start = perf_counter()
         jobs_fetched = 0
         jobs_inserted = 0
+        jobs_updated = 0
+        jobs_duplicates = 0
         success = False
         error_message: Optional[str] = None
 
@@ -122,8 +146,12 @@ class PluginOrchestrator:
                 try:
                     listings = await self._collect_with_retry(plugin)
                     jobs_fetched = len(listings)
-                    ingested = await ingest_job_listings(listings, plugin.plugin_name, session=session)
-                    jobs_inserted = len(ingested)
+                    ingest_stats = await ingest_job_listings(listings, plugin.plugin_name, session=session)
+                    jobs_inserted = ingest_stats.inserted
+                    jobs_updated = ingest_stats.updated
+                    jobs_duplicates = ingest_stats.duplicates
+                    if ingest_stats.errors:
+                        error_message = "; ".join(ingest_stats.errors)
                     success = True
                     plugin_run.status = "success"
                 except Exception as exc:
@@ -149,6 +177,8 @@ class PluginOrchestrator:
             duration_ms=duration_ms,
             jobs_fetched=jobs_fetched,
             jobs_inserted=jobs_inserted,
+            jobs_updated=jobs_updated,
+            jobs_duplicates=jobs_duplicates,
             success=success,
             error_message=error_message,
         )

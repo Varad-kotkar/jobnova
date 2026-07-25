@@ -10,4 +10,9 @@ async def run_ingestion():
     orchestrator = PluginOrchestrator()
     await orchestrator.initialize()
     results = await orchestrator.run()
-    return results
+    return {
+        "inserted": results.inserted,
+        "updated": results.updated,
+        "duplicates": results.duplicates,
+        "errors": results.errors,
+    }

@@ -1,101 +1,103 @@
+from datetime import datetime, timezone
 import logging
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import httpx
 
-from ..base import BasePlugin, PluginConfig, RetryablePluginError
+from ..base import BasePlugin, RetryablePluginError
 from ...models.job_listing import JobListing
 
 logger = logging.getLogger(__name__)
 
-
-def _normalize_location(job_data: Dict[str, Any]) -> str:
-    office = job_data.get("office") or {}
-    city = office.get("name") or ""
-    state = office.get("region") or ""
-    if city and state:
-        return f"{city}, {state}"
-    return city or state or "Remote"
+DEFAULT_BOARDS = ["gitlab", "canonical", "github"]
 
 
-def _normalize_skills(job_data: Dict[str, Any]) -> List[str]:
-    skills = job_data.get("skills") or []
-    return [skill.strip() for skill in skills if isinstance(skill, str)]
+def _normalize_location(location_data: Any) -> str:
+    if isinstance(location_data, dict):
+        return location_data.get("name") or "Remote"
+    if isinstance(location_data, str) and location_data.strip():
+        return location_data.strip()
+    return "Remote"
 
 
-def _parse_iso_datetime(raw_value: Optional[str]) -> Optional[datetime]:
+def _parse_iso_datetime(raw_value: Optional[str]) -> datetime:
     if not raw_value:
-        return None
+        return datetime.now(timezone.utc)
     try:
-        return datetime.fromisoformat(raw_value)
+        dt = datetime.fromisoformat(raw_value.replace("Z", "+00:00"))
+        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
     except ValueError:
-        return None
+        return datetime.now(timezone.utc)
 
 
 class Plugin(BasePlugin):
     async def collect(self) -> List[JobListing]:
         settings = self.config.settings or {}
         endpoint = settings.get("endpoint")
-        if not endpoint or not isinstance(endpoint, str):
-            raise RetryablePluginError("Greenhouse plugin requires a valid endpoint URL")
-
-        logger.info("Fetching Greenhouse jobs", extra={"plugin": self.plugin_name, "endpoint": endpoint})
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            try:
-                response = await client.get(endpoint)
-                response.raise_for_status()
-            except httpx.RequestError as exc:
-                logger.exception("Greenhouse network request failed", extra={"plugin": self.plugin_name, "endpoint": endpoint})
-                raise RetryablePluginError("Greenhouse network request failed") from exc
-            except httpx.HTTPStatusError as exc:
-                logger.exception(
-                    "Greenhouse endpoint returned non-success status",
-                    extra={"plugin": self.plugin_name, "endpoint": endpoint, "status_code": exc.response.status_code},
-                )
-                raise RetryablePluginError("Greenhouse endpoint returned an invalid status") from exc
-
-        payload = response.json()
-        jobs = payload.get("jobs")
-        if not isinstance(jobs, list):
-            logger.error("Greenhouse response is missing the jobs list", extra={"plugin": self.plugin_name})
-            return []
+        
+        boards_str = settings.get("boards")
+        if boards_str and isinstance(boards_str, str):
+            boards = [b.strip() for b in boards_str.split(",") if b.strip()]
+        else:
+            boards = DEFAULT_BOARDS
 
         listings: List[JobListing] = []
-        for item in jobs:
-            if not isinstance(item, dict):
-                logger.warning("Skipping invalid Greenhouse job entry", extra={"plugin": self.plugin_name, "entry": item})
-                continue
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 JobNova/1.0"
+        }
 
-            title = item.get("title")
-            apply_url = item.get("absolute_url") or item.get("apply_url")
-            published_at = _parse_iso_datetime(item.get("updated_at") or item.get("created_at"))
+        async with httpx.AsyncClient(timeout=12.0, follow_redirects=True) as client:
+            if endpoint and isinstance(endpoint, str):
+                endpoints_to_fetch = [(endpoint, "Greenhouse")]
+            else:
+                endpoints_to_fetch = [
+                    (f"https://boards-api.greenhouse.io/v1/boards/{board}/jobs?content=true", board.capitalize())
+                    for board in boards
+                ]
 
-            if not title or not apply_url or not published_at:
-                logger.warning(
-                    "Skipping Greenhouse job with missing required fields",
-                    extra={
-                        "plugin": self.plugin_name,
-                        "job_id": item.get("id"),
-                        "title": title,
-                        "apply_url": apply_url,
-                        "published_at": published_at,
-                    },
-                )
-                continue
+            for url, company_name in endpoints_to_fetch:
+                try:
+                    logger.info("Fetching Greenhouse jobs", extra={"plugin": self.plugin_name, "url": url})
+                    response = await client.get(url, headers=headers)
+                    if response.status_code != 200:
+                        logger.warning("Greenhouse returned status %d for %s", response.status_code, url)
+                        continue
 
-            listings.append(
-                JobListing(
-                    company=item.get("company", "Greenhouse"),
-                    title=title,
-                    location=_normalize_location(item),
-                    description=item.get("content", ""),
-                    apply_url=apply_url,
-                    skills=_normalize_skills(item),
-                    remote=bool(item.get("remote", False)),
-                    published_at=published_at,
-                )
-            )
+                    payload = response.json()
+                    jobs = payload.get("jobs") if isinstance(payload, dict) else payload
+                    if not isinstance(jobs, list):
+                        continue
 
-        logger.info("Greenhouse jobs parsed", extra={"plugin": self.plugin_name, "count": len(listings)})
+                    for item in jobs:
+                        if not isinstance(item, dict):
+                            continue
+
+                        title = item.get("title")
+                        apply_url = item.get("absolute_url") or item.get("apply_url")
+                        if not title or not apply_url:
+                            continue
+
+                        location = _normalize_location(item.get("location"))
+                        published_at = _parse_iso_datetime(item.get("updated_at") or item.get("created_at"))
+                        is_remote = "remote" in location.lower() or "remote" in title.lower()
+                        
+                        content = item.get("content") or item.get("description") or f"{title} position"
+
+                        listings.append(
+                            JobListing(
+                                company=company_name,
+                                title=title,
+                                location=location,
+                                description=content,
+                                apply_url=apply_url,
+                                skills=["Tech"],
+                                remote=is_remote,
+                                published_at=published_at,
+                            )
+                        )
+                except Exception as exc:
+                    logger.warning("Failed to collect Greenhouse jobs from %s: %s", url, exc)
+                    continue
+
+        logger.info("Greenhouse collected %d job listings", len(listings), extra={"plugin": self.plugin_name})
         return listings

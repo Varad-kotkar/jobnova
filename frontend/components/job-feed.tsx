@@ -3,7 +3,9 @@ import Pagination from "@/components/pagination";
 import type { Job, JobListResponse } from "@/lib/types";
 
 const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+  process.env.NEXT_PUBLIC_API_URL ??
+  process.env.NEXT_PUBLIC_API_BASE_URL ??
+  "http://localhost:8000";
 
 const PAGE_SIZE = 12;
 
@@ -22,6 +24,10 @@ async function fetchJobs(
 
   if (params.keyword?.trim()) {
     query.set("keyword", params.keyword.trim());
+  }
+
+  if (params.company?.trim()) {
+    query.set("company", params.company.trim());
   }
 
   if (params.location?.trim()) {
@@ -73,6 +79,7 @@ export default async function JobFeed({
 
   const hasActiveFilters =
     !!searchParams.keyword ||
+    !!searchParams.company ||
     !!searchParams.location ||
     searchParams.remote === "true";
 

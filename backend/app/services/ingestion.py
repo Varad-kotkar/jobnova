@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 import logging
 import re
 from typing import Iterable, List, Optional
 
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database.session import get_async_sessionmaker
@@ -15,7 +15,6 @@ from ..models.source import Source
 from ..models.job_listing import JobListing
 
 logger = logging.getLogger(__name__)
-
 
 _SLUG_RE = re.compile(r"[^a-z0-9]+")
 
@@ -30,11 +29,26 @@ def _normalize_apply_url(raw_url: str) -> str:
     return raw_url.strip()
 
 
+@dataclass
+class IngestionStats:
+    inserted: int = 0
+    updated: int = 0
+    duplicates: int = 0
+    errors: List[str] = field(default_factory=list)
+    jobs: List[Job] = field(default_factory=list)
+
+    def __len__(self) -> int:
+        return self.inserted
+
+    def __iter__(self):
+        return iter(self.jobs)
+
+
 async def ingest_job_listings(
     listings: Iterable[JobListing],
     source_name: str,
     session: Optional[AsyncSession] = None,
-) -> List[Job]:
+) -> IngestionStats:
     if session is None:
         sessionmaker = get_async_sessionmaker()
         async with sessionmaker() as session:
@@ -48,55 +62,80 @@ async def _process_listings(
     session: AsyncSession,
     listings: Iterable[JobListing],
     source_name: str,
-) -> List[Job]:
+) -> IngestionStats:
     source = await _get_or_create_source(session, source_name)
-    ingested: List[Job] = []
+    stats = IngestionStats()
     seen_urls: set[str] = set()
     seen_slugs: set[str] = set()
 
     for listing in listings:
-        apply_url = _normalize_apply_url(listing.apply_url)
-        slug = _generate_slug(listing.company, listing.title, listing.location)
-
-        if apply_url in seen_urls:
-            logger.debug("Duplicate listing skipped by apply_url", extra={"apply_url": apply_url})
-            continue
-        if slug in seen_slugs:
-            logger.debug("Duplicate listing skipped by slug", extra={"slug": slug})
-            continue
-
-        seen_urls.add(apply_url)
-        seen_slugs.add(slug)
-
-        company = await _get_or_create_company(session, listing.company)
-        job = Job(
-            source_id=source.id,
-            company_id=company.id,
-            title=listing.title,
-            description=listing.description,
-            location=listing.location,
-            apply_url=apply_url,
-            slug=slug,
-            skills=listing.skills,
-            remote=listing.remote,
-            published_at=listing.published_at,
-        )
-
-        session.add(job)
         try:
-            async with session.begin_nested():
+            apply_url = _normalize_apply_url(listing.apply_url)
+            slug = _generate_slug(listing.company, listing.title, listing.location)
+
+            if apply_url in seen_urls or slug in seen_slugs:
+                stats.duplicates += 1
+                logger.debug("Duplicate listing skipped in batch", extra={"apply_url": apply_url, "slug": slug})
+                continue
+
+            seen_urls.add(apply_url)
+            seen_slugs.add(slug)
+
+            company = await _get_or_create_company(session, listing.company)
+
+            # Check if job already exists in database (UPSERT logic)
+            query = select(Job).where((Job.apply_url == apply_url) | (Job.slug == slug))
+            result = await session.execute(query)
+            existing_job = result.scalars().first()
+
+            if existing_job:
+                # Update existing job fields
+                existing_job.source_id = source.id
+                existing_job.company_id = company.id
+                existing_job.title = listing.title
+                existing_job.description = listing.description
+                existing_job.location = listing.location
+                existing_job.skills = listing.skills
+                existing_job.remote = listing.remote
+                existing_job.published_at = listing.published_at
+                
+                stats.updated += 1
+                stats.jobs.append(existing_job)
+                logger.info("Updated existing job record", extra={"job_id": existing_job.id, "apply_url": apply_url})
+            else:
+                new_job = Job(
+                    source_id=source.id,
+                    company_id=company.id,
+                    title=listing.title,
+                    description=listing.description,
+                    location=listing.location,
+                    apply_url=apply_url,
+                    slug=slug,
+                    skills=listing.skills,
+                    remote=listing.remote,
+                    published_at=listing.published_at,
+                )
+                session.add(new_job)
                 await session.flush()
-        except IntegrityError as exc:
-            logger.warning(
-                "Job record deduplication conflict detected",
-                extra={"apply_url": apply_url, "slug": slug},
-            )
-            continue
 
-        ingested.append(job)
+                stats.inserted += 1
+                stats.jobs.append(new_job)
+                logger.info("Inserted new job record", extra={"job_id": new_job.id, "apply_url": apply_url})
 
-    logger.info("Ingested %d job listings", len(ingested), extra={"source": source_name})
-    return ingested
+        except Exception as exc:
+            err_msg = f"Failed to ingest listing '{getattr(listing, 'title', 'Unknown')}': {exc}"
+            logger.exception("Error during job listing ingestion", extra={"source": source_name})
+            stats.errors.append(err_msg)
+
+    logger.info(
+        "Ingestion completed for source %s: inserted=%d, updated=%d, duplicates=%d, errors=%d",
+        source_name,
+        stats.inserted,
+        stats.updated,
+        stats.duplicates,
+        len(stats.errors),
+    )
+    return stats
 
 
 async def _get_or_create_source(session: AsyncSession, name: str) -> Source:

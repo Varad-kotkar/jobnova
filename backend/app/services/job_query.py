@@ -36,23 +36,28 @@ async def query_jobs(
                 sa.func.lower(Job.title).like(keyword_pattern),
                 sa.func.lower(Job.description).like(keyword_pattern),
                 sa.func.lower(Job.location).like(keyword_pattern),
+                sa.func.lower(Company.name).like(keyword_pattern),
             )
         )
     if company:
-        filters.append(sa.func.lower(Company.name) == company.lower())
+        filters.append(sa.func.lower(Company.name).like(f"%{company.lower()}%"))
     if location:
         filters.append(sa.func.lower(Job.location).like(f"%{location.lower()}%"))
     if remote is not None:
         filters.append(Job.remote.is_(remote))
 
     query = select(Job).options(joinedload(Job.company)).order_by(desc(Job.published_at)).offset(offset).limit(page_size)
-    if company:
+    
+    # Join company if needed for filters
+    needs_company_join = company is not None or keyword is not None
+    if needs_company_join:
         query = query.join(Job.company)
+        
     if filters:
         query = query.where(and_(*filters))
 
     count_query = select(sa.func.count()).select_from(Job)
-    if company:
+    if needs_company_join:
         count_query = count_query.join(Job.company)
     if filters:
         count_query = count_query.where(and_(*filters))

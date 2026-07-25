@@ -8,6 +8,9 @@ export default function SiteHeader() {
           JobNova
         </Link>
         <nav className="flex items-center gap-4 text-sm text-slate-600">
+          <Link href="/jobs" className="hover:text-slate-950 font-medium">
+            Jobs
+          </Link>
           <Link href="/companies" className="hover:text-slate-950">
             Companies
           </Link>
