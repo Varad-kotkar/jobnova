@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import func, select
 
@@ -80,6 +81,15 @@ def create_application() -> FastAPI:
         docs_url=settings.docs_url,
         openapi_url=settings.openapi_url,
         lifespan=lifespan,
+    )
+
+    origins = [origin.strip() for origin in settings.allowed_origins.split(",") if origin.strip()]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins if origins else ["http://localhost:3000"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     @app.exception_handler(HTTPException)

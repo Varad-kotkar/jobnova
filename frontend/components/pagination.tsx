@@ -1,27 +1,35 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback } from "react";
 
 interface PaginationProps {
   currentPage: number;
   totalPages: number;
+  hasNext: boolean;
+  hasPrevious: boolean;
 }
 
-export default function Pagination({ currentPage, totalPages }: PaginationProps) {
+export default function Pagination({
+  currentPage,
+  totalPages,
+  hasNext,
+  hasPrevious,
+}: PaginationProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
 
   const goToPage = useCallback(
     (page: number) => {
       const params = new URLSearchParams(searchParams.toString());
       params.set("page", String(page));
-      router.push(`/?${params.toString()}`);
+      const targetPath = pathname.startsWith("/jobs") ? "/jobs" : "/";
+      router.push(`${targetPath}?${params.toString()}`, { scroll: true });
     },
-    [router, searchParams],
+    [router, searchParams, pathname]
   );
 
-  // Build a window of page numbers around the current page
   const pages: number[] = [];
   const windowSize = 2;
   const start = Math.max(1, currentPage - windowSize);
@@ -31,11 +39,14 @@ export default function Pagination({ currentPage, totalPages }: PaginationProps)
   }
 
   return (
-    <nav className="mt-10 flex items-center justify-center gap-2" aria-label="Pagination">
+    <nav
+      className="mt-10 flex items-center justify-center gap-2"
+      aria-label="Pagination"
+    >
       <button
         type="button"
         onClick={() => goToPage(currentPage - 1)}
-        disabled={currentPage <= 1}
+        disabled={!hasPrevious}
         className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 shadow-card transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
       >
         ← Previous
@@ -85,7 +96,7 @@ export default function Pagination({ currentPage, totalPages }: PaginationProps)
       <button
         type="button"
         onClick={() => goToPage(currentPage + 1)}
-        disabled={currentPage >= totalPages}
+        disabled={!hasNext}
         className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 shadow-card transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
       >
         Next →

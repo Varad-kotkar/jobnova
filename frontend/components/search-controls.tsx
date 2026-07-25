@@ -12,11 +12,18 @@ export default function SearchControls() {
   const [company, setCompany] = useState(searchParams.get("company") ?? "");
   const [location, setLocation] = useState(searchParams.get("location") ?? "");
   const [remote, setRemote] = useState(searchParams.get("remote") === "true");
+  const [sortBy, setSortBy] = useState(searchParams.get("sort_by") ?? "newest");
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const pushParams = useCallback(
-    (newKeyword: string, newCompany: string, newLocation: string, newRemote: boolean) => {
+    (
+      newKeyword: string,
+      newCompany: string,
+      newLocation: string,
+      newRemote: boolean,
+      newSortBy: string
+    ) => {
       const params = new URLSearchParams();
       const trimmedKeyword = newKeyword.trim();
       const trimmedCompany = newCompany.trim();
@@ -26,23 +33,30 @@ export default function SearchControls() {
       if (trimmedCompany) params.set("company", trimmedCompany);
       if (trimmedLocation) params.set("location", trimmedLocation);
       if (newRemote) params.set("remote", "true");
+      if (newSortBy && newSortBy !== "newest") params.set("sort_by", newSortBy);
       params.set("page", "1");
 
       const qs = params.toString();
       const targetPath = pathname.startsWith("/jobs") ? "/jobs" : "/";
-      router.push(qs ? `${targetPath}?${qs}` : targetPath);
+      router.push(qs ? `${targetPath}?${qs}` : targetPath, { scroll: false });
     },
-    [router, pathname],
+    [router, pathname]
   );
 
   const debouncedPush = useCallback(
-    (newKeyword: string, newCompany: string, newLocation: string, newRemote: boolean) => {
+    (
+      newKeyword: string,
+      newCompany: string,
+      newLocation: string,
+      newRemote: boolean,
+      newSortBy: string
+    ) => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => {
-        pushParams(newKeyword, newCompany, newLocation, newRemote);
+        pushParams(newKeyword, newCompany, newLocation, newRemote, newSortBy);
       }, 350);
     },
-    [pushParams],
+    [pushParams]
   );
 
   useEffect(() => {
@@ -50,46 +64,67 @@ export default function SearchControls() {
     setCompany(searchParams.get("company") ?? "");
     setLocation(searchParams.get("location") ?? "");
     setRemote(searchParams.get("remote") === "true");
+    setSortBy(searchParams.get("sort_by") ?? "newest");
   }, [searchParams]);
 
   const handleKeywordChange = (value: string) => {
     setKeyword(value);
-    debouncedPush(value, company, location, remote);
+    debouncedPush(value, company, location, remote, sortBy);
   };
 
   const handleCompanyChange = (value: string) => {
     setCompany(value);
-    debouncedPush(keyword, value, location, remote);
+    debouncedPush(keyword, value, location, remote, sortBy);
   };
 
   const handleLocationChange = (value: string) => {
     setLocation(value);
-    pushParams(keyword, company, value, remote);
+    debouncedPush(keyword, company, value, remote, sortBy);
   };
 
   const handleRemoteToggle = () => {
     const next = !remote;
     setRemote(next);
-    pushParams(keyword, company, location, next);
+    pushParams(keyword, company, location, next, sortBy);
   };
 
-  const showClear = keyword.length > 0 || company.length > 0 || location.length > 0 || remote;
+  const handleSortChange = (value: string) => {
+    setSortBy(value);
+    pushParams(keyword, company, location, remote, value);
+  };
+
+  const showClear =
+    keyword.length > 0 ||
+    company.length > 0 ||
+    location.length > 0 ||
+    remote ||
+    sortBy !== "newest";
 
   const handleClear = () => {
     setKeyword("");
     setCompany("");
     setLocation("");
     setRemote(false);
+    setSortBy("newest");
     const targetPath = pathname.startsWith("/jobs") ? "/jobs" : "/";
-    router.push(targetPath);
+    router.push(targetPath, { scroll: false });
   };
 
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center flex-wrap">
       {/* Keyword search */}
       <div className="flex min-w-[240px] flex-1 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-card focus-within:border-slate-400 focus-within:ring-1 focus-within:ring-slate-400 transition">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 shrink-0 text-slate-400">
-          <path fillRule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clipRule="evenodd" />
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          className="h-4 w-4 shrink-0 text-slate-400"
+        >
+          <path
+            fillRule="evenodd"
+            d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z"
+            clipRule="evenodd"
+          />
         </svg>
         <input
           value={keyword}
@@ -101,8 +136,17 @@ export default function SearchControls() {
 
       {/* Company filter */}
       <div className="flex min-w-[160px] items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-card focus-within:border-slate-400 focus-within:ring-1 focus-within:ring-slate-400 transition">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 shrink-0 text-slate-400">
-          <path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H4a1 1 0 110-2V4zm3 1a1 1 0 000 2h1a1 1 0 100-2H7zm0 4a1 1 0 100 2h1a1 1 0 100-2H7zm0 4a1 1 0 100 2h1a1 1 0 100-2H7zm5-8a1 1 0 100 2h1a1 1 0 100-2h-1zm0 4a1 1 0 100 2h1a1 1 0 100-2h-1zm0 4a1 1 0 100 2h1a1 1 0 100-2h-1z" clipRule="evenodd" />
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          className="h-4 w-4 shrink-0 text-slate-400"
+        >
+          <path
+            fillRule="evenodd"
+            d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H4a1 1 0 110-2V4zm3 1a1 1 0 000 2h1a1 1 0 100-2H7zm0 4a1 1 0 100 2h1a1 1 0 100-2H7zm0 4a1 1 0 100 2h1a1 1 0 100-2H7zm5-8a1 1 0 100 2h1a1 1 0 100-2h-1zm0 4a1 1 0 100 2h1a1 1 0 100-2h-1zm0 4a1 1 0 100 2h1a1 1 0 100-2h-1z"
+            clipRule="evenodd"
+          />
         </svg>
         <input
           value={company}
@@ -114,8 +158,17 @@ export default function SearchControls() {
 
       {/* Location search */}
       <div className="flex min-w-[160px] items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-card focus-within:border-slate-400 focus-within:ring-1 focus-within:ring-slate-400 transition">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 shrink-0 text-slate-400">
-          <path fillRule="evenodd" d="M9.69 18.933l.003.001C9.89 19.02 10 19 10 19s.11.02.308-.066l.002-.001.006-.003.018-.008a5.741 5.741 0 00.281-.14c.186-.096.446-.24.757-.433.62-.384 1.445-.966 2.274-1.765C15.302 14.988 17 12.493 17 9A7 7 0 103 9c0 3.492 1.698 5.988 3.355 7.584a13.731 13.731 0 002.274 1.765 11.842 11.842 0 00.976.544l.062.029.018.008.006.003zM10 11.25a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5z" clipRule="evenodd" />
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          className="h-4 w-4 shrink-0 text-slate-400"
+        >
+          <path
+            fillRule="evenodd"
+            d="M9.69 18.933l.003.001C9.89 19.02 10 19 10 19s.11.02.308-.066l.002-.001.006-.003.018-.008a5.741 5.741 0 00.281-.14c.186-.096.446-.24.757-.433.62-.384 1.445-.966 2.274-1.765C15.302 14.988 17 12.493 17 9A7 7 0 103 9c0 3.492 1.698 5.988 3.355 7.584a13.731 13.731 0 002.274 1.765 11.842 11.842 0 00.976.544l.062.029.018.008.006.003zM10 11.25a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5z"
+            clipRule="evenodd"
+          />
         </svg>
         <input
           value={location}
@@ -123,6 +176,22 @@ export default function SearchControls() {
           placeholder="Location..."
           className="w-full border-none bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
         />
+      </div>
+
+      {/* Sort By Dropdown */}
+      <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-card focus-within:border-slate-400 transition">
+        <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">
+          Sort
+        </span>
+        <select
+          value={sortBy}
+          onChange={(e) => handleSortChange(e.target.value)}
+          className="bg-transparent text-sm font-medium text-slate-900 outline-none cursor-pointer"
+        >
+          <option value="newest">Newest</option>
+          <option value="relevance">Relevance</option>
+          <option value="oldest">Oldest</option>
+        </select>
       </div>
 
       {/* Remote toggle */}

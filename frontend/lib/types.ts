@@ -11,9 +11,16 @@ export interface Job {
   published_at: string;
 }
 
-export interface JobListResponse {
-  total: number;
+export interface PaginationMeta {
   page: number;
   page_size: number;
+  total: number;
+  total_pages: number;
+  has_next: boolean;
+  has_previous: boolean;
+}
+
+export interface JobListResponse {
   items: Job[];
+  pagination: PaginationMeta;
 }

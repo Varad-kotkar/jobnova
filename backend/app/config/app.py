@@ -17,6 +17,7 @@ class AppConfig(BaseSettings):
     docs_url: str = "/docs"
     openapi_url: str = "/openapi.json"
     api_base_url: Optional[str] = None
+    allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000,https://jobnova.vercel.app"
 
     model_config = SettingsConfigDict(
         env_file=Path(__file__).resolve().parent.parent.parent / ".env",

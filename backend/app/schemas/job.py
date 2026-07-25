@@ -22,8 +22,15 @@ class JobResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class JobListResponse(BaseModel):
-    total: int
+class PaginationMeta(BaseModel):
     page: int
     page_size: int
+    total: int
+    total_pages: int
+    has_next: bool
+    has_previous: bool
+
+
+class JobListResponse(BaseModel):
     items: List[JobResponse]
+    pagination: PaginationMeta

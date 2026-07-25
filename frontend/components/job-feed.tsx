@@ -1,11 +1,8 @@
 import JobCard from "@/components/job-card";
 import Pagination from "@/components/pagination";
+import { getApiUrl } from "@/lib/api";
 import type { Job, JobListResponse } from "@/lib/types";
-
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL ??
-  process.env.NEXT_PUBLIC_API_BASE_URL ??
-  "http://localhost:8000";
+import Link from "next/link";
 
 const PAGE_SIZE = 12;
 
@@ -38,18 +35,30 @@ async function fetchJobs(
     query.set("remote", "true");
   }
 
+  if (params.sort_by) {
+    query.set("sort_by", params.sort_by);
+  }
+
+  const apiBase = getApiUrl();
+  const fetchUrl = `${apiBase}/api/jobs?${query.toString()}`;
+
   try {
-    const res = await fetch(`${API_BASE}/api/jobs?${query.toString()}`, {
-      next: { revalidate: 60 },
+    const res = await fetch(fetchUrl, {
+      next: { revalidate: 30 },
     });
 
     if (!res.ok) {
-      console.warn("Failed to fetch jobs:", res.statusText);
+      console.warn(`Failed to fetch jobs (${res.status}): ${res.statusText}`);
       return {
         items: [],
-        total: 0,
-        page: 1,
-        page_size: PAGE_SIZE,
+        pagination: {
+          page: 1,
+          page_size: PAGE_SIZE,
+          total: 0,
+          total_pages: 1,
+          has_next: false,
+          has_previous: false,
+        },
       };
     }
 
@@ -59,29 +68,28 @@ async function fetchJobs(
 
     return {
       items: [],
-      total: 0,
-      page: 1,
-      page_size: PAGE_SIZE,
+      pagination: {
+        page: 1,
+        page_size: PAGE_SIZE,
+        total: 0,
+        total_pages: 1,
+        has_next: false,
+        has_previous: false,
+      },
     };
   }
 }
 
-export default async function JobFeed({
-  searchParams,
-}: JobFeedProps) {
+export default async function JobFeed({ searchParams }: JobFeedProps) {
   const data = await fetchJobs(searchParams);
-
-  const currentPage = Math.max(Number(searchParams.page) || 1, 1);
-  const totalPages = Math.max(
-    Math.ceil(data.total / PAGE_SIZE),
-    1
-  );
+  const { pagination, items } = data;
 
   const hasActiveFilters =
     !!searchParams.keyword ||
     !!searchParams.company ||
     !!searchParams.location ||
-    searchParams.remote === "true";
+    searchParams.remote === "true" ||
+    (!!searchParams.sort_by && searchParams.sort_by !== "newest");
 
   return (
     <section>
@@ -92,17 +100,17 @@ export default async function JobFeed({
           </p>
 
           <h2 className="text-2xl font-semibold text-slate-950">
-            {data.total > 0
-              ? `${data.total} job${data.total === 1 ? "" : "s"} found`
+            {pagination.total > 0
+              ? `${pagination.total} job${pagination.total === 1 ? "" : "s"} found`
               : "Jobs for you"}
           </h2>
         </div>
       </div>
 
-      {data.items.length > 0 ? (
+      {items.length > 0 ? (
         <>
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {data.items.map((job: Job) => (
+            {items.map((job: Job) => (
               <JobCard
                 key={job.id}
                 id={job.id}
@@ -117,11 +125,13 @@ export default async function JobFeed({
             ))}
           </div>
 
-          {totalPages > 1 && (
+          {pagination.total_pages > 1 && (
             <div className="mt-8">
               <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
+                currentPage={pagination.page}
+                totalPages={pagination.total_pages}
+                hasNext={pagination.has_next}
+                hasPrevious={pagination.has_previous}
               />
             </div>
           )}
@@ -143,15 +153,24 @@ export default async function JobFeed({
             />
           </svg>
 
-          <p className="text-base font-medium text-slate-600">
-            No jobs found
+          <p className="text-base font-semibold text-slate-800">
+            No matching jobs found
           </p>
 
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 max-w-sm text-sm text-slate-500">
             {hasActiveFilters
-              ? "Try adjusting your search or clearing filters."
-              : "New jobs will appear here once they are ingested."}
+              ? "We couldn't find any jobs matching your active search criteria. Try removing filters or modifying keywords."
+              : "New job listings will automatically appear here as soon as they are ingested."}
           </p>
+
+          {hasActiveFilters && (
+            <Link
+              href="/jobs"
+              className="mt-5 rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-slate-800 transition"
+            >
+              Clear All Filters
+            </Link>
+          )}
         </div>
       )}
     </section>

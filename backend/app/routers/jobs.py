@@ -7,7 +7,7 @@ from sqlalchemy.orm import joinedload
 
 from ..database.session import get_session
 from ..models.job import Job
-from ..schemas.job import JobListResponse, JobResponse
+from ..schemas.job import JobListResponse, JobResponse, PaginationMeta
 from ..services.job_query import query_jobs
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
@@ -21,9 +21,10 @@ async def list_jobs(
     company: Optional[str] = Query(None, min_length=1),
     location: Optional[str] = Query(None, min_length=1),
     remote: Optional[bool] = Query(None),
+    sort_by: str = Query("newest", pattern="^(newest|oldest|relevance)$"),
     session: AsyncSession = Depends(get_session),
 ) -> JobListResponse:
-    jobs, total = await query_jobs(
+    jobs, meta = await query_jobs(
         session=session,
         page=page,
         page_size=page_size,
@@ -31,12 +32,10 @@ async def list_jobs(
         company=company,
         location=location,
         remote=remote,
+        sort_by=sort_by,
     )
 
     return JobListResponse(
-        total=total,
-        page=page,
-        page_size=page_size,
         items=[
             JobResponse(
                 id=job.id,
@@ -52,6 +51,14 @@ async def list_jobs(
             )
             for job in jobs
         ],
+        pagination=PaginationMeta(
+            page=meta["page"],
+            page_size=meta["page_size"],
+            total=meta["total"],
+            total_pages=meta["total_pages"],
+            has_next=meta["has_next"],
+            has_previous=meta["has_previous"],
+        ),
     )
 
 

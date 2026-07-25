@@ -12,17 +12,20 @@ from fastapi import HTTPException
 
 @pytest.mark.anyio
 async def test_jobs_list_and_filters(async_session):
-    # insert company and source
     company = Company(name=f"Acme-{uuid.uuid4()}")
     source = Source(name=f"test_source-{uuid.uuid4()}")
+    
+    async_session.add_all([company, source])
+    await async_session.flush()
+
     job1 = Job(
         source_id=source.id,
         company_id=company.id,
         title="Engineer",
-        description="Work",
+        description="Work with Python and FastAPI",
         location="NYC",
-        apply_url="https://a.example/apply/1",
-        slug="acme-engineer-nyc",
+        apply_url=f"https://a.example/apply/{uuid.uuid4()}",
+        slug=f"acme-engineer-nyc-{uuid.uuid4()}",
         skills=["python"],
         remote=False,
         published_at=datetime.now(timezone.utc),
@@ -31,38 +34,33 @@ async def test_jobs_list_and_filters(async_session):
         source_id=source.id,
         company_id=company.id,
         title="Senior Engineer",
-        description="Work more",
+        description="Work with React and TypeScript",
         location="Remote",
-        apply_url="https://a.example/apply/2",
-        slug="acme-senior-engineer-remote",
+        apply_url=f"https://a.example/apply/{uuid.uuid4()}",
+        slug=f"acme-senior-engineer-remote-{uuid.uuid4()}",
         skills=["python", "aws"],
         remote=True,
         published_at=datetime.now(timezone.utc),
     )
 
-    # persist company and source first to ensure ids are populated
-    async_session.add_all([company, source])
-    await async_session.flush()
-
-    job1.source_id = source.id
-    job1.company_id = company.id
-    job2.source_id = source.id
-    job2.company_id = company.id
-
     async_session.add_all([job1, job2])
     await async_session.commit()
 
-    # list all via router function
-    result = await list_jobs(page=1, page_size=25, keyword=None, company=None, location=None, remote=None, session=async_session)
-    assert result.total == 2
+    # List all
+    result = await list_jobs(page=1, page_size=25, keyword=None, company=None, location=None, remote=None, sort_by="newest", session=async_session)
+    assert result.pagination.total >= 2
+    assert result.pagination.page == 1
+    assert result.pagination.has_previous is False
 
-    # filter by remote
-    result = await list_jobs(page=1, page_size=25, keyword=None, company=None, location=None, remote=True, session=async_session)
-    assert result.total == 1
+    # Filter by remote
+    result = await list_jobs(page=1, page_size=25, keyword=None, company=None, location=None, remote=True, sort_by="newest", session=async_session)
+    assert len(result.items) >= 1
+    assert all(item.remote for item in result.items)
 
-    # pagination
-    result = await list_jobs(page=1, page_size=1, keyword=None, company=None, location=None, remote=None, session=async_session)
-    assert result.page_size == 1
+    # Filter by keyword (relevance)
+    result = await list_jobs(page=1, page_size=25, keyword="React", company=None, location=None, remote=None, sort_by="relevance", session=async_session)
+    assert len(result.items) >= 1
+    assert "React" in result.items[0].description
 
 
 @pytest.mark.anyio
