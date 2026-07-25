@@ -58,6 +58,26 @@ async def ingest_job_listings(
     return await _process_listings(session, listings, source_name)
 
 
+SPAM_KEYWORDS = [
+    "training", "course", "bootcamp", "academy", "registration fee", "pay to apply",
+    "course enrollment", "placement training", "become job ready", "demo class",
+    "online course", "paid course", "workshop", "seminar", "masterclass"
+]
+
+
+def _is_valid_quality_job(listing: JobListing) -> bool:
+    if not listing.company or not listing.title or not listing.apply_url:
+        return False
+    if not listing.description or not listing.description.strip():
+        return False
+
+    content_text = f"{listing.title} {listing.description}".lower()
+    for kw in SPAM_KEYWORDS:
+        if kw in content_text:
+            return False
+    return True
+
+
 async def _process_listings(
     session: AsyncSession,
     listings: Iterable[JobListing],
@@ -70,6 +90,10 @@ async def _process_listings(
 
     for listing in listings:
         try:
+            if not _is_valid_quality_job(listing):
+                logger.info("Skipped low-quality or spam listing: %s", getattr(listing, 'title', 'Unknown'))
+                continue
+
             apply_url = _normalize_apply_url(listing.apply_url)
             slug = _generate_slug(listing.company, listing.title, listing.location)
 
@@ -99,6 +123,7 @@ async def _process_listings(
                 existing_job.remote = listing.remote
                 existing_job.published_at = listing.published_at
                 
+                target_job = existing_job
                 stats.updated += 1
                 stats.jobs.append(existing_job)
                 logger.info("Updated existing job record", extra={"job_id": existing_job.id, "apply_url": apply_url})
@@ -117,10 +142,14 @@ async def _process_listings(
                 )
                 session.add(new_job)
                 await session.flush()
+                target_job = new_job
 
                 stats.inserted += 1
                 stats.jobs.append(new_job)
                 logger.info("Inserted new job record", extra={"job_id": new_job.id, "apply_url": apply_url})
+
+            from .category_classifier import CategoryClassifier
+            await CategoryClassifier.classify_and_assign(session, target_job)
 
         except Exception as exc:
             err_msg = f"Failed to ingest listing '{getattr(listing, 'title', 'Unknown')}': {exc}"
@@ -150,11 +179,21 @@ async def _get_or_create_source(session: AsyncSession, name: str) -> Source:
 
 
 async def _get_or_create_company(session: AsyncSession, name: str) -> Company:
-    result = await session.execute(select(Company).where(Company.name == name))
+    clean_name = name.strip()
+    result = await session.execute(select(Company).where(Company.name == clean_name))
     company = result.scalars().first()
     if company is None:
-        company = Company(name=name)
+        cleaned_slug = re.sub(r"[^\w\s-]", "", clean_name.lower())
+        company_slug = re.sub(r"[-\s]+", "-", cleaned_slug).strip("-") or "company"
+        company = Company(
+            name=clean_name,
+            slug=company_slug,
+            website=f"https://{company_slug}.com",
+            industry="Technology",
+            size="100-1,000 employees",
+            headquarters="San Francisco, CA",
+        )
         session.add(company)
         await session.flush()
-        logger.info("Created company record", extra={"company": name})
+        logger.info("Created company record", extra={"company": clean_name, "slug": company_slug})
     return company

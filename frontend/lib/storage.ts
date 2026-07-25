@@ -81,6 +81,21 @@ export function toggleSaveJob(job: {
 
   localStorage.setItem(SAVED_JOBS_KEY, JSON.stringify(list));
   window.dispatchEvent(new Event("jobnova_saved_jobs_changed"));
+
+  // Async sync with backend if token exists
+  const token = localStorage.getItem("jobnova_token");
+  if (token && token !== "demo-jwt-token") {
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+    const method = nowSaved ? "POST" : "DELETE";
+    fetch(`${apiBase}/api/jobs/${job.id}/save`, {
+      method,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    }).catch((err) => console.warn("Backend saved job sync warning:", err));
+  }
+
   return nowSaved;
 }
 
@@ -113,6 +128,20 @@ export function recordJobApplication(job: {
     });
     localStorage.setItem(APPLIED_JOBS_KEY, JSON.stringify(list));
     window.dispatchEvent(new Event("jobnova_applied_jobs_changed"));
+
+    // Async sync with backend if token exists
+    const token = localStorage.getItem("jobnova_token");
+    if (token && token !== "demo-jwt-token") {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+      fetch(`${apiBase}/api/applications`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ job_id: job.id, status: "Applied" }),
+      }).catch((err) => console.warn("Backend application record sync warning:", err));
+    }
   }
 }
 

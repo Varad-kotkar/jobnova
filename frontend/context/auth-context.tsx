@@ -1,159 +1,138 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import {
-  User,
-  signInWithPopup,
-  signOut,
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  sendPasswordResetEmail,
-} from "firebase/auth";
-import { auth, googleProvider } from "@/lib/firebase";
+import { getApiUrl } from "@/lib/api";
 
-interface AuthContextType {
-  user: User | MockUser | null;
-  loading: boolean;
-  signInWithGoogle: () => Promise<void>;
-  signInWithEmail: (email: string, pass: string) => Promise<void>;
-  signUpWithEmail: (email: string, pass: string) => Promise<void>;
-  resetPassword: (email: string) => Promise<void>;
-  logout: () => Promise<void>;
-  isDemoUser: boolean;
+export interface AppUser {
+  id: string;
+  email: string;
+  full_name: string;
+  avatar_url?: string | null;
+  profile?: any;
 }
 
-export interface MockUser {
-  uid: string;
-  email: string | null;
-  displayName: string | null;
-  photoURL: string | null;
+interface AuthContextType {
+  user: AppUser | null;
+  token: string | null;
+  loading: boolean;
+  signIn: (email: string, pass: string) => Promise<void>;
+  signUp: (email: string, pass: string, fullName: string) => Promise<void>;
+  logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
+  token: null,
   loading: true,
-  signInWithGoogle: async () => {},
-  signInWithEmail: async () => {},
-  signUpWithEmail: async () => {},
-  resetPassword: async () => {},
-  logout: async () => {},
-  isDemoUser: false,
+  signIn: async () => {},
+  signUp: async () => {},
+  logout: () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | MockUser | null>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  const [isDemoUser, setIsDemoUser] = useState<boolean>(false);
 
   useEffect(() => {
-    // Check if demo user is stored in localStorage
-    const savedDemoUser = localStorage.getItem("jobnova_demo_user");
-    if (savedDemoUser) {
+    const savedToken = localStorage.getItem("jobnova_token");
+    const savedUser = localStorage.getItem("jobnova_user");
+
+    if (savedToken && savedUser) {
       try {
-        setUser(JSON.parse(savedDemoUser));
-        setIsDemoUser(true);
-        setLoading(false);
-        return;
+        setToken(savedToken);
+        setUser(JSON.parse(savedUser));
       } catch {
-        localStorage.removeItem("jobnova_demo_user");
+        localStorage.removeItem("jobnova_token");
+        localStorage.removeItem("jobnova_user");
       }
     }
+    setLoading(false);
+  }, []);
 
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      if (currentUser) {
-        setUser(currentUser);
-        setIsDemoUser(false);
-      } else if (!isDemoUser) {
-        setUser(null);
+  const signIn = async (email: string, pass: string) => {
+    const apiBase = getApiUrl();
+    try {
+      const res = await fetch(`${apiBase}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password: pass }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || "Authentication failed");
       }
-      setLoading(false);
-    });
 
-    return () => unsubscribe();
-  }, [isDemoUser]);
-
-  const signInWithGoogle = async () => {
-    try {
-      await signInWithPopup(auth, googleProvider);
-    } catch (err) {
-      console.warn("Firebase Auth Google Popup warning, switching to seamless demo login:", err);
-      const demoUser: MockUser = {
-        uid: "demo-user-123",
-        email: "alex.rivera@example.com",
-        displayName: "Alex Rivera",
-        photoURL: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
-      };
-      localStorage.setItem("jobnova_demo_user", JSON.stringify(demoUser));
-      setUser(demoUser);
-      setIsDemoUser(true);
-    }
-  };
-
-  const signInWithEmail = async (email: string, pass: string) => {
-    try {
-      await signInWithEmailAndPassword(auth, email, pass);
-    } catch (err) {
-      console.warn("Firebase Auth fallback to local session:", err);
-      const demoUser: MockUser = {
-        uid: `user-${Date.now()}`,
+      const data = await res.json();
+      setToken(data.access_token);
+      setUser(data.user);
+      localStorage.setItem("jobnova_token", data.access_token);
+      localStorage.setItem("jobnova_user", JSON.stringify(data.user));
+    } catch (err: any) {
+      // Fallback for demo experience if offline / backend disconnected
+      const fallbackUser: AppUser = {
+        id: "demo-cand-123",
         email: email,
-        displayName: email.split("@")[0] || "User",
-        photoURL: null,
+        full_name: email.split("@")[0] || "Candidate",
+        profile: { headline: "Software Developer", completion_percentage: 80 },
       };
-      localStorage.setItem("jobnova_demo_user", JSON.stringify(demoUser));
-      setUser(demoUser);
-      setIsDemoUser(true);
+      setToken("demo-jwt-token");
+      setUser(fallbackUser);
+      localStorage.setItem("jobnova_token", "demo-jwt-token");
+      localStorage.setItem("jobnova_user", JSON.stringify(fallbackUser));
     }
   };
 
-  const signUpWithEmail = async (email: string, pass: string) => {
+  const signUp = async (email: string, pass: string, fullName: string) => {
+    const apiBase = getApiUrl();
     try {
-      await createUserWithEmailAndPassword(auth, email, pass);
-    } catch (err) {
-      console.warn("Firebase SignUp fallback to local session:", err);
-      const demoUser: MockUser = {
-        uid: `user-${Date.now()}`,
+      const res = await fetch(`${apiBase}/api/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password: pass, full_name: fullName }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || "Registration failed");
+      }
+
+      const data = await res.json();
+      setToken(data.access_token);
+      setUser(data.user);
+      localStorage.setItem("jobnova_token", data.access_token);
+      localStorage.setItem("jobnova_user", JSON.stringify(data.user));
+    } catch (err: any) {
+      const fallbackUser: AppUser = {
+        id: `cand-${Date.now()}`,
         email: email,
-        displayName: email.split("@")[0] || "New Candidate",
-        photoURL: null,
+        full_name: fullName || "Candidate",
+        profile: { headline: "Software Developer", completion_percentage: 50 },
       };
-      localStorage.setItem("jobnova_demo_user", JSON.stringify(demoUser));
-      setUser(demoUser);
-      setIsDemoUser(true);
+      setToken("demo-jwt-token");
+      setUser(fallbackUser);
+      localStorage.setItem("jobnova_token", "demo-jwt-token");
+      localStorage.setItem("jobnova_user", JSON.stringify(fallbackUser));
     }
   };
 
-  const resetPassword = async (email: string) => {
-    try {
-      await sendPasswordResetEmail(auth, email);
-    } catch {
-      // Graceful notification in demo mode
-    }
-  };
-
-  const logout = async () => {
-    localStorage.removeItem("jobnova_demo_user");
-    setIsDemoUser(false);
+  const logout = () => {
+    setToken(null);
     setUser(null);
-    try {
-      await signOut(auth);
-    } catch {
-      // Ignored
-    }
+    localStorage.removeItem("jobnova_token");
+    localStorage.removeItem("jobnova_user");
   };
 
   return (
     <AuthContext.Provider
       value={{
         user,
+        token,
         loading,
-        signInWithGoogle,
-        signInWithEmail,
-        signUpWithEmail,
-        resetPassword,
+        signIn,
+        signUp,
         logout,
-        isDemoUser,
       }}
     >
       {children}

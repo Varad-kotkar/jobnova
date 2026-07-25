@@ -24,6 +24,12 @@ async def list_jobs(
     sort_by: str = Query("newest", pattern="^(newest|oldest|relevance)$"),
     session: AsyncSession = Depends(get_session),
 ) -> JobListResponse:
+    cache_key = f"jobs:list:{page}:{page_size}:{keyword}:{company}:{location}:{remote}:{sort_by}"
+    from ..core.cache import CacheManager
+    cached_res = await CacheManager.get(cache_key)
+    if cached_res:
+        return JobListResponse(**cached_res)
+
     jobs, meta = await query_jobs(
         session=session,
         page=page,
@@ -35,7 +41,7 @@ async def list_jobs(
         sort_by=sort_by,
     )
 
-    return JobListResponse(
+    response_data = JobListResponse(
         items=[
             JobResponse(
                 id=job.id,
@@ -60,6 +66,9 @@ async def list_jobs(
             has_previous=meta["has_previous"],
         ),
     )
+
+    await CacheManager.set(cache_key, response_data.model_dump(mode="json"), ttl_seconds=300)
+    return response_data
 
 
 @router.get("/{slug}", response_model=JobResponse, status_code=status.HTTP_200_OK)

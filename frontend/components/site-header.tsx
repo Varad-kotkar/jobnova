@@ -5,7 +5,18 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
 import AuthModal from "@/components/auth-modal";
+import { getApiUrl } from "@/lib/api";
 import { getSavedJobs } from "@/lib/storage";
+
+interface NotificationItem {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  priority: string;
+  is_read: boolean;
+  created_at?: string | null;
+}
 
 export default function SiteHeader() {
   const pathname = usePathname();
@@ -13,8 +24,12 @@ export default function SiteHeader() {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [notifMenuOpen, setNotifMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [savedCount, setSavedCount] = useState(0);
+
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     const updateSaved = () => {
@@ -25,6 +40,42 @@ export default function SiteHeader() {
     return () => window.removeEventListener("jobnova_saved_jobs_changed", updateSaved);
   }, []);
 
+  useEffect(() => {
+    // Fetch notifications if token exists
+    const token = localStorage.getItem("jobnova_token");
+    if (token && token !== "demo-jwt-token") {
+      const apiBase = getApiUrl();
+      fetch(`${apiBase}/api/notifications`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data) {
+            setNotifications(data.notifications || []);
+            setUnreadCount(data.unread_count || 0);
+          }
+        })
+        .catch((err) => console.warn("Notifications fetch error:", err));
+    }
+  }, [user]);
+
+  const handleMarkAllRead = async () => {
+    const token = localStorage.getItem("jobnova_token");
+    if (token && token !== "demo-jwt-token") {
+      const apiBase = getApiUrl();
+      try {
+        await fetch(`${apiBase}/api/notifications/read-all`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setUnreadCount(0);
+        setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+      } catch (err) {
+        console.warn("Mark read error:", err);
+      }
+    }
+  };
+
   const openAuth = (mode: "signin" | "signup") => {
     setAuthMode(mode);
     setAuthModalOpen(true);
@@ -34,6 +85,7 @@ export default function SiteHeader() {
     { href: "/jobs", label: "Jobs" },
     { href: "/jobs?remote=true", label: "Remote Jobs" },
     { href: "/companies", label: "Companies" },
+    { href: "/career-coach", label: "Career Coach 🚀" },
     { href: "/about", label: "About" },
   ];
 
@@ -73,6 +125,64 @@ export default function SiteHeader() {
 
           {/* Right Actions / Auth State */}
           <div className="flex items-center gap-3">
+            {/* Notification Bell Dropdown */}
+            {user && (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setNotifMenuOpen(!notifMenuOpen)}
+                  className="relative rounded-full border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-50 transition"
+                  title="Notifications"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  </svg>
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-600 text-[10px] font-extrabold text-white">
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
+
+                {notifMenuOpen && (
+                  <div
+                    onMouseLeave={() => setNotifMenuOpen(false)}
+                    className="absolute right-0 mt-2 w-80 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl z-50 animate-in fade-in slide-in-from-top-2 space-y-3"
+                  >
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                      <span className="text-xs font-extrabold text-slate-950">Candidate Notifications</span>
+                      {unreadCount > 0 && (
+                        <button
+                          onClick={handleMarkAllRead}
+                          className="text-[11px] font-bold text-indigo-600 hover:underline"
+                        >
+                          Mark all as read
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="max-h-64 overflow-y-auto space-y-2 divide-y divide-slate-100">
+                      {notifications.length > 0 ? (
+                        notifications.map((n) => (
+                          <div key={n.id} className="pt-2 text-xs">
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-slate-950">{n.title}</span>
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${n.priority === "High" ? "bg-rose-50 text-rose-700" : "bg-slate-100 text-slate-700"}`}>
+                                {n.priority}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-600 mt-1">{n.message}</p>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-xs text-slate-500 py-4 text-center">No unread notifications.</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Saved Jobs Badge */}
             <Link
               href="/dashboard?tab=saved"
@@ -98,19 +208,19 @@ export default function SiteHeader() {
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
                   className="flex items-center gap-2 rounded-full border border-slate-200 bg-white p-1 pr-3 text-xs font-semibold text-slate-800 shadow-card hover:border-slate-300 transition"
                 >
-                  {user.photoURL ? (
+                  {user.avatar_url ? (
                     <img
-                      src={user.photoURL}
-                      alt={user.displayName || "User"}
+                      src={user.avatar_url}
+                      alt={user.full_name || "User"}
                       className="h-7 w-7 rounded-full object-cover"
                     />
                   ) : (
                     <div className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-950 font-bold text-white uppercase text-xs">
-                      {(user.displayName || user.email || "U").charAt(0)}
+                      {(user.full_name || user.email || "U").charAt(0)}
                     </div>
                   )}
                   <span className="max-w-[100px] truncate font-medium">
-                    {user.displayName || user.email?.split("@")[0]}
+                    {user.full_name || user.email?.split("@")[0]}
                   </span>
                   <svg className="h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -123,7 +233,7 @@ export default function SiteHeader() {
                     className="absolute right-0 mt-2 w-56 rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl z-50 animate-in fade-in slide-in-from-top-2"
                   >
                     <div className="px-3 py-2 border-b border-slate-100 mb-1">
-                      <p className="text-xs font-bold text-slate-950 truncate">{user.displayName || "Candidate"}</p>
+                      <p className="text-xs font-bold text-slate-950 truncate">{user.full_name || "Candidate"}</p>
                       <p className="text-[11px] text-slate-500 truncate">{user.email}</p>
                     </div>
                     <Link
@@ -131,9 +241,6 @@ export default function SiteHeader() {
                       onClick={() => setUserMenuOpen(false)}
                       className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-950 transition"
                     >
-                      <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                      </svg>
                       Candidate Dashboard
                     </Link>
                     <Link
@@ -141,20 +248,7 @@ export default function SiteHeader() {
                       onClick={() => setUserMenuOpen(false)}
                       className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-950 transition"
                     >
-                      <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                      </svg>
                       My Profile
-                    </Link>
-                    <Link
-                      href="/dashboard?tab=saved"
-                      onClick={() => setUserMenuOpen(false)}
-                      className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-950 transition"
-                    >
-                      <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                      </svg>
-                      Saved Jobs ({savedCount})
                     </Link>
                     <div className="border-t border-slate-100 my-1 pt-1">
                       <button
@@ -165,9 +259,6 @@ export default function SiteHeader() {
                         }}
                         className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 transition"
                       >
-                        <svg className="h-4 w-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                        </svg>
                         Log Out
                       </button>
                     </div>
@@ -180,81 +271,24 @@ export default function SiteHeader() {
                 <button
                   type="button"
                   onClick={() => openAuth("signin")}
-                  className="rounded-full px-4 py-2 text-xs font-semibold text-slate-700 hover:text-slate-950 transition"
+                  className="rounded-full px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition"
                 >
                   Sign In
                 </button>
                 <button
                   type="button"
                   onClick={() => openAuth("signup")}
-                  className="rounded-full bg-slate-950 px-4 py-2 text-xs font-semibold text-white shadow-md hover:bg-slate-800 transition"
+                  className="rounded-full bg-slate-950 px-4.5 py-2 text-xs font-semibold text-white shadow-md hover:bg-slate-800 transition"
                 >
-                  Get Started
+                  Get Started →
                 </button>
               </div>
             )}
-
-            {/* Mobile Hamburger Toggle */}
-            <button
-              type="button"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="rounded-xl p-2 text-slate-600 hover:bg-slate-100 md:hidden"
-            >
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                {mobileMenuOpen ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                )}
-              </svg>
-            </button>
           </div>
         </div>
-
-        {/* Mobile Navigation Drawer */}
-        {mobileMenuOpen && (
-          <div className="border-t border-slate-200 bg-white px-4 py-4 md:hidden animate-in slide-in-from-top-4">
-            <div className="flex flex-col gap-2">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href as any}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                >
-                  {link.label}
-                </Link>
-              ))}
-              {user && (
-                <>
-                  <div className="border-t border-slate-100 my-2 pt-2" />
-                  <Link
-                    href="/dashboard"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="rounded-xl px-3 py-2 text-sm font-medium text-slate-950 bg-slate-50"
-                  >
-                    Candidate Dashboard
-                  </Link>
-                  <Link
-                    href="/profile"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="rounded-xl px-3 py-2 text-sm font-medium text-slate-700"
-                  >
-                    My Profile
-                  </Link>
-                </>
-              )}
-            </div>
-          </div>
-        )}
       </header>
 
-      {/* Auth Modal */}
-      <AuthModal
-        isOpen={authModalOpen}
-        onClose={() => setAuthModalOpen(false)}
-        initialMode={authMode}
-      />
+      <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} initialMode={authMode} />
     </>
   );
 }

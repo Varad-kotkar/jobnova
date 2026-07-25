@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { getApiUrl } from "@/lib/api";
 import { isJobSaved, toggleSaveJob } from "@/lib/storage";
 
 interface JobCardProps {
@@ -26,9 +27,26 @@ export default function JobCard({
   publishedAt,
 }: JobCardProps) {
   const [saved, setSaved] = useState(false);
+  const [matchScore, setMatchScore] = useState<number | null>(null);
 
   useEffect(() => {
     setSaved(isJobSaved(id));
+
+    // Fetch AI match score if token exists
+    const token = localStorage.getItem("jobnova_token");
+    if (token && token !== "demo-jwt-token") {
+      const apiBase = getApiUrl();
+      fetch(`${apiBase}/api/jobs/${id}/match-score`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data && typeof data.match_score === "number") {
+            setMatchScore(data.match_score);
+          }
+        })
+        .catch((err) => console.warn("Match score warning:", err));
+    }
   }, [id]);
 
   const handleBookmark = (e: React.MouseEvent) => {
@@ -40,7 +58,6 @@ export default function JobCard({
 
   const getCompanyInitial = (name: string) => (name ? name.charAt(0).toUpperCase() : "C");
 
-  // Format relative time (e.g. 2d ago)
   const getRelativeTime = (dateStr: string) => {
     try {
       const diffDays = Math.floor(
@@ -93,7 +110,7 @@ export default function JobCard({
           </button>
         </div>
 
-        {/* Location & Remote Badge */}
+        {/* Location, Remote & AI Fit Score Badge */}
         <div className="mt-4 flex flex-wrap items-center gap-2 text-xs font-medium text-slate-600">
           <span className="flex items-center gap-1">
             <svg className="h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -105,6 +122,17 @@ export default function JobCard({
           {remote && (
             <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-[11px] font-semibold text-indigo-700 border border-indigo-100">
               Remote
+            </span>
+          )}
+          {matchScore !== null && (
+            <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-extrabold border ${
+              matchScore >= 80
+                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                : matchScore >= 55
+                ? "bg-amber-50 text-amber-700 border-amber-200"
+                : "bg-slate-100 text-slate-600 border-slate-200"
+            }`}>
+              ⚡ {matchScore}% Match
             </span>
           )}
         </div>
@@ -127,7 +155,7 @@ export default function JobCard({
         </div>
       </div>
 
-      {/* Card Footer: Posted Time & Apply Action */}
+      {/* Card Footer */}
       <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4 text-xs">
         <span className="font-medium text-slate-400">
           {getRelativeTime(publishedAt)}

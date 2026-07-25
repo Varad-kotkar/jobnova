@@ -2,15 +2,36 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { getApiUrl } from "@/lib/api";
 import { getUserProfile, saveUserProfile, UserProfileData } from "@/lib/storage";
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<UserProfileData>(getUserProfile());
   const [newSkill, setNewSkill] = useState("");
   const [savedNotice, setSavedNotice] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [parsedSkills, setParsedSkills] = useState<string[]>([]);
+  const [resumeVersion, setResumeVersion] = useState<number | null>(null);
 
   useEffect(() => {
     setProfile(getUserProfile());
+
+    // Fetch primary resume version from API if token exists
+    const token = localStorage.getItem("jobnova_token");
+    if (token && token !== "demo-jwt-token") {
+      const apiBase = getApiUrl();
+      fetch(`${apiBase}/api/users/resume/primary`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data) {
+            setResumeVersion(data.version);
+            setParsedSkills(data.extracted_skills || []);
+          }
+        })
+        .catch((err) => console.warn("Primary resume fetch warning:", err));
+    }
   }, []);
 
   const handleChange = (field: keyof UserProfileData, value: any) => {
@@ -19,6 +40,47 @@ export default function ProfilePage() {
     saveUserProfile(updated);
     setSavedNotice(true);
     setTimeout(() => setSavedNotice(false), 2000);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+    setUploading(true);
+
+    const token = localStorage.getItem("jobnova_token");
+    if (token && token !== "demo-jwt-token") {
+      const apiBase = getApiUrl();
+      const formData = new FormData();
+      formData.append("file", file);
+
+      try {
+        const res = await fetch(`${apiBase}/api/users/resume/upload`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          setResumeVersion(data.version);
+          setParsedSkills(data.extracted_skills || []);
+          
+          // Merge newly extracted skills with profile
+          const combinedSkills = Array.from(new Set([...profile.skills, ...(data.extracted_skills || [])]));
+          handleChange("resumeFileName", file.name);
+          handleChange("skills", combinedSkills);
+        }
+      } catch (err) {
+        console.warn("Resume upload API warning:", err);
+      } finally {
+        setUploading(false);
+      }
+    } else {
+      handleChange("resumeFileName", file.name);
+      setUploading(false);
+    }
   };
 
   const handleAddSkill = (e: React.FormEvent) => {
@@ -145,18 +207,32 @@ export default function ProfilePage() {
           </div>
         </section>
 
-        {/* Resume Dropzone */}
+        {/* Resume Dropzone & Versioning */}
         <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-card space-y-4">
-          <h2 className="text-xl font-bold text-slate-950">Resume / CV</h2>
-          <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50/50 p-8 text-center hover:bg-slate-50 transition cursor-pointer">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold text-slate-950">Resume / CV</h2>
+            {resumeVersion && (
+              <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700 border border-indigo-100">
+                Version {resumeVersion} Primary
+              </span>
+            )}
+          </div>
+
+          <label className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50/50 p-8 text-center hover:bg-slate-50 transition cursor-pointer">
+            <input
+              type="file"
+              accept=".pdf,.docx,.txt"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
             <svg className="h-10 w-10 text-slate-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
             </svg>
             <p className="text-sm font-semibold text-slate-900">
-              Attached: <span className="text-indigo-600 underline">{profile.resumeFileName}</span>
+              {uploading ? "Parsing resume..." : <>Attached: <span className="text-indigo-600 underline">{profile.resumeFileName}</span></>}
             </p>
-            <p className="text-xs text-slate-400 mt-1">Drag and drop a new PDF or DOCX file to update your parsed resume.</p>
-          </div>
+            <p className="text-xs text-slate-400 mt-1">Click to upload a new PDF or DOCX file. Skills will be extracted automatically.</p>
+          </label>
         </section>
 
         {/* Skills Tag Editor */}
@@ -198,9 +274,9 @@ export default function ProfilePage() {
         </section>
 
         {/* Social Links */}
-        <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-card space-y-4">
-          <h2 className="text-xl font-bold text-slate-950">Social Links & Portfolio</h2>
-          <div className="grid gap-4 sm:grid-cols-3">
+        <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-card space-y-6">
+          <h2 className="text-xl font-bold text-slate-950">Social & Portfolio Links</h2>
+          <div className="grid gap-5 sm:grid-cols-3">
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
                 GitHub URL
@@ -209,7 +285,7 @@ export default function ProfilePage() {
                 type="url"
                 value={profile.githubUrl}
                 onChange={(e) => handleChange("githubUrl", e.target.value)}
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 outline-none"
+                className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-medium text-slate-900 outline-none focus:border-slate-950"
               />
             </div>
             <div>
@@ -220,18 +296,18 @@ export default function ProfilePage() {
                 type="url"
                 value={profile.linkedInUrl}
                 onChange={(e) => handleChange("linkedInUrl", e.target.value)}
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 outline-none"
+                className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-medium text-slate-900 outline-none focus:border-slate-950"
               />
             </div>
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
-                Portfolio / Website
+                Portfolio URL
               </label>
               <input
                 type="url"
                 value={profile.portfolioUrl}
                 onChange={(e) => handleChange("portfolioUrl", e.target.value)}
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 outline-none"
+                className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-medium text-slate-900 outline-none focus:border-slate-950"
               />
             </div>
           </div>

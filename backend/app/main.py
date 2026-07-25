@@ -92,6 +92,36 @@ def create_application() -> FastAPI:
         allow_headers=["*"],
     )
 
+    import time
+    import uuid
+    from fastapi.responses import PlainTextResponse
+    from .core.telemetry import TelemetryService
+
+    @app.middleware("http")
+    async def observability_and_security_middleware(request: Request, call_next):
+        request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+        start_time = time.perf_counter()
+
+        response = await call_next(request)
+
+        latency_ms = round((time.perf_counter() - start_time) * 1000, 2)
+        TelemetryService.record_request(request.method, request.url.path, response.status_code, latency_ms)
+
+        response.headers["X-Request-ID"] = request_id
+        response.headers["X-Response-Time"] = f"{latency_ms}ms"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';"
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+
+        return response
+
+    @app.get("/metrics", response_class=PlainTextResponse, status_code=status.HTTP_200_OK, tags=["telemetry"])
+    async def metrics_endpoint():
+        return TelemetryService.get_metrics_prometheus()
+
     @app.exception_handler(HTTPException)
     async def http_exception_handler(request: Request, exc: HTTPException):
         return JSONResponse(

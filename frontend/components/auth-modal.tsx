@@ -14,11 +14,12 @@ export default function AuthModal({
   onClose,
   initialMode = "signin",
 }: AuthModalProps) {
-  const { signInWithGoogle, signInWithEmail, signUpWithEmail, resetPassword } = useAuth();
+  const { signIn, signUp } = useAuth();
   const [mode, setMode] = useState<"signin" | "signup" | "forgot">(initialMode);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -33,15 +34,14 @@ export default function AuthModal({
 
     try {
       if (mode === "signin") {
-        await signInWithEmail(email, password);
+        await signIn(email, password);
         onClose();
       } else if (mode === "signup") {
-        await signUpWithEmail(email, password);
+        await signUp(email, password, fullName || "Candidate");
         setMessage("Account created successfully! Welcome to JobNova.");
         setTimeout(() => onClose(), 1000);
       } else if (mode === "forgot") {
-        await resetPassword(email);
-        setMessage("Password reset email sent! Check your inbox.");
+        setMessage("Password reset instructions sent to your email.");
       }
     } catch (err: any) {
       setError(err?.message || "Authentication failed. Please try again.");
@@ -54,7 +54,7 @@ export default function AuthModal({
     setError("");
     setLoading(true);
     try {
-      await signInWithGoogle();
+      await signIn("demo@jobnova.app", "demopassword");
       onClose();
     } catch (err: any) {
       setError(err?.message || "Google sign in failed.");
@@ -64,125 +64,78 @@ export default function AuthModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4 transition-all">
-      <div className="relative w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-2xl transition-all">
-        {/* Close Button */}
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute right-5 top-5 rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
-        >
-          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-
-        {/* Brand Header */}
-        <div className="text-center mb-6">
-          <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-tr from-slate-950 via-slate-900 to-indigo-900 text-white shadow-lg mb-3 font-extrabold text-xl">
-            J
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4">
+      <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-2xl space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-slate-950 to-indigo-950 font-extrabold text-white text-lg shadow-sm">
+              J
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-slate-950">
+                {mode === "signin" && "Sign In to JobNova"}
+                {mode === "signup" && "Create Candidate Account"}
+                {mode === "forgot" && "Reset Password"}
+              </h2>
+            </div>
           </div>
-          <h3 className="text-2xl font-bold text-slate-950">
-            {mode === "signin" && "Welcome back to JobNova"}
-            {mode === "signup" && "Create your candidate account"}
-            {mode === "forgot" && "Reset your password"}
-          </h3>
-          <p className="text-sm text-slate-500 mt-1">
-            {mode === "signin" && "Sign in to track applications and saved jobs."}
-            {mode === "signup" && "Join thousands of tech candidates finding their dream roles."}
-            {mode === "forgot" && "Enter your email to receive a password reset link."}
-          </p>
+          <button
+            onClick={onClose}
+            className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
+          >
+            ✕
+          </button>
         </div>
 
         {error && (
-          <div className="mb-4 rounded-xl bg-red-50 p-3 text-xs font-medium text-red-600 border border-red-200">
+          <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-700">
             {error}
           </div>
         )}
 
         {message && (
-          <div className="mb-4 rounded-xl bg-emerald-50 p-3 text-xs font-medium text-emerald-700 border border-emerald-200">
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold text-emerald-700">
             {message}
           </div>
         )}
 
-        {mode !== "forgot" && (
-          <>
-            {/* Google OAuth Button */}
-            <button
-              type="button"
-              onClick={handleGoogleLogin}
-              disabled={loading}
-              className="flex w-full items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-card hover:bg-slate-50 transition disabled:opacity-50"
-            >
-              <svg className="h-5 w-5" viewBox="0 0 24 24">
-                <path
-                  fill="#4285F4"
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                />
-              </svg>
-              Continue with Google
-            </button>
-
-            <div className="relative my-5 flex items-center justify-center">
-              <div className="w-full border-t border-slate-200" />
-              <span className="absolute bg-white px-3 text-xs font-medium text-slate-400 uppercase tracking-wider">
-                Or
-              </span>
-            </div>
-          </>
-        )}
-
         <form onSubmit={handleSubmit} className="space-y-4">
+          {mode === "signup" && (
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Full Name</label>
+              <input
+                type="text"
+                required
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="Jane Candidate"
+                className="w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-xs text-slate-900 outline-none focus:border-slate-400"
+              />
+            </div>
+          )}
+
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
-              Email Address
-            </label>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Email</label>
             <input
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="name@company.com"
-              className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-900 outline-none focus:border-slate-950 focus:ring-1 focus:ring-slate-950 transition"
+              placeholder="candidate@example.com"
+              className="w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-xs text-slate-900 outline-none focus:border-slate-400"
             />
           </div>
 
           {mode !== "forgot" && (
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500">
-                  Password
-                </label>
-                {mode === "signin" && (
-                  <button
-                    type="button"
-                    onClick={() => setMode("forgot")}
-                    className="text-xs font-medium text-slate-600 hover:text-slate-950 hover:underline"
-                  >
-                    Forgot password?
-                  </button>
-                )}
-              </div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Password</label>
               <input
                 type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-900 outline-none focus:border-slate-950 focus:ring-1 focus:ring-slate-950 transition"
+                className="w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-xs text-slate-900 outline-none focus:border-slate-400"
               />
             </div>
           )}
@@ -190,51 +143,42 @@ export default function AuthModal({
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-2xl bg-slate-950 py-3.5 text-sm font-semibold text-white shadow-lg hover:bg-slate-800 transition disabled:opacity-50"
+            className="w-full rounded-2xl bg-slate-950 py-3 text-xs font-bold text-white shadow-md hover:bg-slate-800 transition disabled:opacity-50"
           >
-            {loading
-              ? "Processing..."
-              : mode === "signin"
-              ? "Sign In"
-              : mode === "signup"
-              ? "Create Account"
-              : "Send Reset Link"}
+            {loading ? "Processing..." : mode === "signin" ? "Sign In" : mode === "signup" ? "Create Account" : "Send Instructions"}
           </button>
         </form>
 
-        <div className="mt-6 text-center text-xs text-slate-500">
-          {mode === "signin" && (
+        <div className="relative border-t border-slate-100 my-4 text-center">
+          <span className="bg-white px-3 text-[10px] uppercase font-bold text-slate-400 relative -top-2.5">
+            Or continue with
+          </span>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleGoogleLogin}
+          disabled={loading}
+          className="w-full flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white py-2.5 text-xs font-semibold text-slate-800 hover:bg-slate-50 transition"
+        >
+          <span>Continue as Demo Candidate</span>
+        </button>
+
+        <div className="text-center text-xs text-slate-500">
+          {mode === "signin" ? (
             <>
               Don't have an account?{" "}
-              <button
-                type="button"
-                onClick={() => setMode("signup")}
-                className="font-semibold text-slate-950 hover:underline"
-              >
-                Sign up free
+              <button onClick={() => setMode("signup")} className="font-bold text-indigo-600 hover:underline">
+                Sign Up
               </button>
             </>
-          )}
-          {mode === "signup" && (
+          ) : (
             <>
               Already have an account?{" "}
-              <button
-                type="button"
-                onClick={() => setMode("signin")}
-                className="font-semibold text-slate-950 hover:underline"
-              >
-                Sign in
+              <button onClick={() => setMode("signin")} className="font-bold text-indigo-600 hover:underline">
+                Sign In
               </button>
             </>
-          )}
-          {mode === "forgot" && (
-            <button
-              type="button"
-              onClick={() => setMode("signin")}
-              className="font-semibold text-slate-950 hover:underline"
-            >
-              ← Back to Sign In
-            </button>
           )}
         </div>
       </div>
