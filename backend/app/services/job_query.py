@@ -67,17 +67,56 @@ async def query_jobs(
     if filters:
         query = query.where(and_(*filters))
 
-    # Sorting & Relevance Ranking Logic
+    # Smart Priority Ranking Score Calculation (India-first, Remote, Internship, Data/AI)
+    # +40 India location, +30 Remote, +25 Internship, +25 Data/AI, +15 Fresher
+    india_score = case(
+        (
+            or_(
+                sa.func.lower(Job.location).like("%india%"),
+                sa.func.lower(Job.location).like("%bangalore%"),
+                sa.func.lower(Job.location).like("%pune%"),
+                sa.func.lower(Job.location).like("%hyderabad%"),
+                sa.func.lower(Job.location).like("%mumbai%"),
+                sa.func.lower(Job.location).like("%delhi%"),
+                sa.func.lower(Job.location).like("%noida%"),
+                sa.func.lower(Job.location).like("%gurgaon%"),
+                sa.func.lower(Job.location).like("%chennai%"),
+            ),
+            40,
+        ),
+        else_=0,
+    )
+    remote_score = case((Job.remote.is_(True), 30), else_=0)
+    intern_score = case(
+        (
+            or_(
+                sa.func.lower(Job.title).like("%intern%"),
+                sa.func.lower(Job.title).like("%fresher%"),
+                sa.func.lower(Job.description).like("%internship%"),
+            ),
+            25,
+        ),
+        else_=0,
+    )
+    data_ai_score = case(
+        (
+            or_(
+                sa.func.lower(Job.title).like("%data%"),
+                sa.func.lower(Job.title).like("%analyst%"),
+                sa.func.lower(Job.title).like("%ai %"),
+                sa.func.lower(Job.title).like("%ml %"),
+                sa.func.lower(Job.title).like("%intelligence%"),
+            ),
+            25,
+        ),
+        else_=0,
+    )
+    total_smart_score = (india_score + remote_score + intern_score + data_ai_score).label("priority_score")
+
     order_clauses = []
     if clean_keyword and sort_by in ("relevance", "newest"):
         pattern = f"%{clean_keyword}%"
         skills_text = cast(Job.skills, sa.String)
-        # Weighted relevance rank:
-        # 1. Exact title match -> rank 1
-        # 2. Partial title match -> rank 2
-        # 3. Company match -> rank 3
-        # 4. Skills match -> rank 4
-        # 5. Description match -> rank 5
         relevance_rank = case(
             (sa.func.lower(Job.title) == clean_keyword, 1),
             (sa.func.lower(Job.title).like(pattern), 2),
@@ -88,10 +127,12 @@ async def query_jobs(
         )
         order_clauses.append(relevance_rank.asc())
 
+    # Smart Priority Score as primary ranking factor for default sorting
+    order_clauses.append(desc(total_smart_score))
+
     if sort_by == "oldest":
         order_clauses.append(asc(Job.published_at))
     else:
-        # Default tie-breaker or explicit newest sort
         order_clauses.append(desc(Job.published_at))
 
     query = query.order_by(*order_clauses).offset(offset).limit(page_size)

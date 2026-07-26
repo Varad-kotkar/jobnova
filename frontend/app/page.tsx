@@ -11,24 +11,26 @@ export default async function HomePage(props: HomePageProps) {
   const searchParams = await props.searchParams;
 
   const popularSearches = [
-    { label: "Frontend", query: "frontend" },
-    { label: "Full Stack", query: "full stack" },
-    { label: "Backend", query: "backend" },
-    { label: "AI / ML", query: "ai" },
-    { label: "React / Next.js", query: "react" },
-    { label: "Python", query: "python" },
+    { label: "🇮🇳 India Jobs", query: "India" },
+    { label: "🏠 Remote Jobs", query: "remote" },
+    { label: "📊 Data Analyst", query: "data analyst" },
+    { label: "🤖 AI Engineer", query: "ai engineer" },
+    { label: "🎓 Internships", query: "intern" },
+    { label: "💼 Freshers", query: "fresher" },
+    { label: "🐍 Python", query: "python" },
+    { label: "📊 Power BI / SQL", query: "sql" },
   ];
 
   const categories = [
-    { name: "Software Engineering", icon: "💻", count: "4,200+ jobs" },
-    { name: "Product & Design", icon: "🎨", count: "1,100+ jobs" },
-    { name: "AI & Data Science", icon: "🤖", count: "950+ jobs" },
-    { name: "DevOps & Cloud", icon: "⚡", count: "800+ jobs" },
-    { name: "Marketing & Growth", icon: "🚀", count: "600+ jobs" },
-    { name: "Finance & Operations", icon: "📊", count: "500+ jobs" },
+    { name: "🇮🇳 India Engineering & Data", icon: "🇮🇳", count: "3,500+ jobs", query: "India" },
+    { name: "🏠 Remote & WFH", icon: "🏠", count: "1,800+ jobs", query: "Remote" },
+    { name: "📊 Data Analytics & BI", icon: "📊", count: "1,200+ jobs", query: "Data Analyst" },
+    { name: "🤖 AI & Machine Learning", icon: "🤖", count: "950+ jobs", query: "AI Engineer" },
+    { name: "🎓 Internships & Freshers", icon: "🎓", count: "800+ jobs", query: "Intern" },
+    { name: "💻 Full Stack & Backend", icon: "💻", count: "2,100+ jobs", query: "Software" },
   ];
 
-  const trustedCompanies = ["Stripe", "Vercel", "Linear", "Figma", "Notion", "Datadog"];
+  const trustedCompanies = ["Google", "Microsoft", "Amazon", "NVIDIA", "Flipkart", "Razorpay", "Swiggy", "Zomato", "Zoho"];
 
   return (
     <div className="space-y-16 pb-16 bg-white">
@@ -136,7 +138,7 @@ export default async function HomePage(props: HomePageProps) {
           {categories.map((cat) => (
             <Link
               key={cat.name}
-              href={`/jobs?keyword=${encodeURIComponent(cat.name.split(" ")[0])}`}
+              href={`/jobs?keyword=${encodeURIComponent(cat.query || cat.name)}`}
               className="group rounded-2xl border border-gray-200 bg-white p-5 shadow-subtle hover:border-gray-300 transition flex items-center justify-between"
             >
               <div className="flex items-center gap-3">

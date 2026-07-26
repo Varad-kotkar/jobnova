@@ -13,6 +13,17 @@ from ..models.job import Job
 logger = logging.getLogger("backend.app.company_service")
 
 
+def resolve_company_logo(name: str, slug: str, website: Optional[str] = None, logo_url: Optional[str] = None) -> str:
+    if logo_url and logo_url.strip() and "http" in logo_url:
+        return logo_url
+    if website and "http" in website:
+        domain = website.replace("https://", "").replace("http://", "").split("/")[0].replace("www.", "")
+        if domain and "." in domain:
+            return f"https://logo.clearbit.com/{domain}"
+    clean_slug = slug.replace("-", "").lower() if slug else name.lower().replace(" ", "")
+    return f"https://logo.clearbit.com/{clean_slug}.com"
+
+
 class CompanyService:
     @staticmethod
     async def get_companies(
@@ -67,6 +78,7 @@ class CompanyService:
 
         companies = []
         for row in rows:
+            resolved_logo = resolve_company_logo(row.name, row.slug, row.website, row.logo_url)
             companies.append(
                 {
                     "id": row.id,
@@ -77,7 +89,7 @@ class CompanyService:
                     "size": row.size or "100-1,000 employees",
                     "headquarters": row.headquarters or "San Francisco, CA",
                     "description": row.description or f"{row.name} is a leading technology company hiring engineering and product talent.",
-                    "logo_url": row.logo_url,
+                    "logo_url": resolved_logo,
                     "active_jobs": int(row.active_jobs or 0),
                     "remote_jobs": int(row.remote_jobs or 0),
                     "latest_job_posted": row.latest_job_posted.isoformat() if row.latest_job_posted else None,

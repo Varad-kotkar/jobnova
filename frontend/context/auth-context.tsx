@@ -136,11 +136,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         saveSession(userData, idToken);
         return;
       }
-    } catch (fbErr) {
-      console.warn("Firebase email auth skipped or fallback to API auth:", fbErr);
+    } catch (fbErr: any) {
+      console.warn("Firebase auth warning (falling back to API auth):", fbErr?.message || fbErr);
     }
 
-    // Backend Auth Fallback for Dev/Local environments
+    // Backend Auth Fallback for Dev/Local environments or invalid Firebase API Key
     const apiBase = getApiUrl();
     const res = await fetch(`${apiBase}/api/auth/login`, {
       method: "POST",
@@ -150,7 +150,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      throw new Error(data.detail || data.error?.message || "Invalid credentials");
+      const msg = data.detail || data.error?.message || "Invalid credentials. Please verify your email and password.";
+      throw new Error(msg.includes("api-key-not-valid") ? "Invalid credentials. Please check your login details." : msg);
     }
 
     const data = await res.json();
@@ -162,8 +163,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const userCred = await createUserWithEmailAndPassword(auth, email, pass);
       idToken = await userCred.user.getIdToken();
-    } catch (fbErr) {
-      console.warn("Firebase sign up skipped, creating backend user:", fbErr);
+    } catch (fbErr: any) {
+      console.warn("Firebase signup warning (falling back to API registration):", fbErr?.message || fbErr);
     }
 
     const apiBase = getApiUrl();
@@ -178,7 +179,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      throw new Error(data.detail || data.error?.message || "Registration failed on backend");
+      const msg = data.detail || data.error?.message || "Registration failed. Please try a different email address.";
+      throw new Error(msg.includes("api-key-not-valid") ? "Registration failed. Please check your details." : msg);
     }
 
     const data = await res.json();

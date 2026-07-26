@@ -41,7 +41,30 @@ export interface JobCardProps {
 }
 
 export function CompanyLogo({ name, logoUrl }: { name: string; logoUrl?: string }) {
-  const [imgError, setImgError] = useState(false);
+  const cleanDomain = name ? name.toLowerCase().replace(/[^a-z0-9]/g, "") : "jobnova";
+  const primaryLogo = logoUrl && logoUrl.trim().length > 0 ? logoUrl : `https://logo.clearbit.com/${cleanDomain}.com`;
+  
+  const [src, setSrc] = useState(primaryLogo);
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    const freshPrimary = logoUrl && logoUrl.trim().length > 0 ? logoUrl : `https://logo.clearbit.com/${cleanDomain}.com`;
+    setSrc(freshPrimary);
+    setAttempt(0);
+  }, [logoUrl, name]);
+
+  const handleError = () => {
+    if (attempt === 0) {
+      setSrc(`https://logo.clearbit.com/${cleanDomain}.com`);
+      setAttempt(1);
+    } else if (attempt === 1) {
+      setSrc(`https://icon.horse/icon/${cleanDomain}.com`);
+      setAttempt(2);
+    } else {
+      setAttempt(3);
+    }
+  };
+
   const initials = name
     ? name
         .split(" ")
@@ -51,13 +74,13 @@ export function CompanyLogo({ name, logoUrl }: { name: string; logoUrl?: string 
         .slice(0, 2)
     : "JN";
 
-  if (logoUrl && !imgError) {
+  if (attempt < 3 && src) {
     return (
       <img
-        src={logoUrl}
+        src={src}
         alt={`${name} logo`}
-        className="w-12 h-12 rounded-xl object-contain bg-slate-50 p-1 border border-slate-100 shadow-sm"
-        onError={() => setImgError(true)}
+        className="w-12 h-12 rounded-xl object-contain bg-white p-1 border border-slate-200/80 shadow-sm"
+        onError={handleError}
       />
     );
   }
@@ -98,6 +121,7 @@ export function JobCardSkeleton() {
 
 export function JobCard(props: JobCardProps) {
   const { isLoading, onBookmarkToggle, isBookmarked = false } = props;
+  const { token } = useAuth();
   const [saved, setSaved] = useState(isBookmarked);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
