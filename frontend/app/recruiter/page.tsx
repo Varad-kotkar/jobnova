@@ -163,6 +163,28 @@ export default function RecruiterPortalPage() {
         </Link>
       </div>
 
+      {/* Recruiter Verification Status Banner */}
+      {!isApproved && (
+        <div className="mb-8 rounded-3xl border border-amber-200 bg-amber-50 p-6 shadow-subtle flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-500 text-white font-bold text-lg shadow-sm">
+              ⏳
+            </div>
+            <div>
+              <h3 className="text-sm font-extrabold text-amber-900">
+                Recruiter Verification Status: <span className="uppercase tracking-wide font-black underline">{verificationStatus}</span>
+              </h3>
+              <p className="text-xs text-amber-800 mt-1 max-w-xl leading-relaxed">
+                Your recruiter profile is currently undergoing administrative review. Job posting will be unlocked immediately after an admin approves your profile.
+              </p>
+            </div>
+          </div>
+          <span className="rounded-xl bg-amber-200/80 px-3 py-1.5 text-xs font-extrabold text-amber-900 border border-amber-300">
+            Posting Locked
+          </span>
+        </div>
+      )}
+
       {/* Tabs Navigation */}
       <div className="mb-8 border-b border-slate-200 flex gap-6">
         <button
@@ -176,14 +198,29 @@ export default function RecruiterPortalPage() {
           Applicant Pipeline ({applicants.length})
         </button>
         <button
-          onClick={() => setActiveTab("post")}
-          className={`pb-4 text-sm font-bold transition border-b-2 ${
-            activeTab === "post"
+          disabled={!isApproved}
+          onClick={() => {
+            if (isApproved) {
+              setActiveTab("post");
+            } else {
+              setPostError(`Recruiter verification required. Current status: '${verificationStatus}'. Only approved recruiters may post jobs.`);
+            }
+          }}
+          className={`pb-4 text-sm font-bold transition border-b-2 flex items-center gap-1.5 ${
+            !isApproved
+              ? "cursor-not-allowed opacity-50 border-transparent text-slate-400"
+              : activeTab === "post"
               ? "border-slate-950 text-slate-950"
               : "border-transparent text-slate-400 hover:text-slate-700"
           }`}
+          title={!isApproved ? "Verification pending. Job posting disabled." : "Post new job listing"}
         >
-          Post New Role ➕
+          <span>Post New Role</span>
+          {!isApproved ? (
+            <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-extrabold text-slate-600">Locked 🔒</span>
+          ) : (
+            <span>➕</span>
+          )}
         </button>
       </div>
 

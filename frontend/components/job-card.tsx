@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Bookmark, MapPin, Building2, DollarSign, CheckCircle2, Sparkles, ShieldCheck } from "lucide-react";
+import { useAuth } from "@/context/auth-context";
+import { getApiUrl } from "@/lib/api";
 import { toggleSaveJob } from "@/lib/storage";
 
 export interface JobCardProps {
@@ -119,6 +121,23 @@ export function JobCard(props: JobCardProps) {
   const logoUrl = typeof job.company === "object" ? job.company?.logo_url : undefined;
   const isVerifiedCompany = typeof job.company === "object" ? job.company?.verified !== false : true;
 
+  useEffect(() => {
+    if (token) {
+      const apiBase = getApiUrl();
+      fetch(`${apiBase}/api/jobs/saved`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((res) => (res.ok ? res.json() : []))
+        .then((savedList) => {
+          if (Array.isArray(savedList)) {
+            const isFound = savedList.some((s: any) => s.id === job.id || s.job_id === job.id);
+            if (isFound) setSaved(true);
+          }
+        })
+        .catch((err) => console.warn("Saved jobs sync warning:", err));
+    }
+  }, [job.id, token]);
+
   const handleBookmark = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -127,14 +146,17 @@ export function JobCard(props: JobCardProps) {
     setToastMsg(nextSaved ? "Job saved to your bookmarks!" : "Removed from bookmarks");
     setTimeout(() => setToastMsg(null), 2500);
 
-    toggleSaveJob({
-      id: job.id,
-      slug: job.slug || job.id,
-      title: job.title,
-      company: companyName,
-      location: job.location,
-      remote: job.remote,
-    });
+    toggleSaveJob(
+      {
+        id: job.id,
+        slug: job.slug || job.id,
+        title: job.title,
+        company: companyName,
+        location: job.location,
+        remote: job.remote,
+      },
+      token
+    );
 
     if (onBookmarkToggle) {
       onBookmarkToggle(job.id, nextSaved);

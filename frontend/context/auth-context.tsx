@@ -50,17 +50,42 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<AppUser | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+  const [user, setUser] = useState<AppUser | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const stored = localStorage.getItem("jobnova_session_user");
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const [token, setToken] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("jobnova_session_token") || null;
+  });
+
   const [loading, setLoading] = useState<boolean>(true);
+
+  const saveSession = (u: AppUser | null, t: string | null) => {
+    setUser(u);
+    setToken(t);
+    if (typeof window !== "undefined") {
+      if (u && t) {
+        localStorage.setItem("jobnova_session_user", JSON.stringify(u));
+        localStorage.setItem("jobnova_session_token", t);
+      } else {
+        localStorage.removeItem("jobnova_session_user");
+        localStorage.removeItem("jobnova_session_token");
+      }
+    }
+  };
 
   useEffect(() => {
     const unsubscribe = onIdTokenChanged(auth, async (fbUser: FirebaseUser | null) => {
       if (fbUser) {
         try {
           const idToken = await fbUser.getIdToken();
-          setToken(idToken);
-
           const apiBase = getApiUrl();
           const meRes = await fetch(`${apiBase}/api/auth/me`, {
             headers: { Authorization: `Bearer ${idToken}` },
@@ -68,7 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           if (meRes.ok) {
             const userData = await meRes.json();
-            setUser(userData);
+            saveSession(userData, idToken);
           } else {
             // Upsert / initialize user if not present
             const initRes = await fetch(`${apiBase}/api/auth/register`, {
@@ -85,15 +110,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             });
             if (initRes.ok) {
               const data = await initRes.json();
-              setUser(data.user);
+              saveSession(data.user, idToken);
             }
           }
         } catch (err) {
           console.error("Error fetching authenticated user context:", err);
         }
-      } else {
-        setToken(null);
-        setUser(null);
       }
       setLoading(false);
     });
@@ -102,22 +124,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signIn = async (email: string, pass: string) => {
-    const userCred = await signInWithEmailAndPassword(auth, email, pass);
-    const idToken = await userCred.user.getIdToken();
-    setToken(idToken);
+    try {
+      const userCred = await signInWithEmailAndPassword(auth, email, pass);
+      const idToken = await userCred.user.getIdToken();
+      const apiBase = getApiUrl();
+      const meRes = await fetch(`${apiBase}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${idToken}` },
+      });
+      if (meRes.ok) {
+        const userData = await meRes.json();
+        saveSession(userData, idToken);
+        return;
+      }
+    } catch (fbErr) {
+      console.warn("Firebase email auth skipped or fallback to API auth:", fbErr);
+    }
+
+    // Backend Auth Fallback for Dev/Local environments
+    const apiBase = getApiUrl();
+    const res = await fetch(`${apiBase}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password: pass }),
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.detail || data.error?.message || "Invalid credentials");
+    }
+
+    const data = await res.json();
+    saveSession(data.user, data.access_token);
   };
 
   const signUp = async (email: string, pass: string, fullName: string, role: string = "candidate") => {
-    const userCred = await createUserWithEmailAndPassword(auth, email, pass);
-    const idToken = await userCred.user.getIdToken();
-    setToken(idToken);
+    let idToken = "";
+    try {
+      const userCred = await createUserWithEmailAndPassword(auth, email, pass);
+      idToken = await userCred.user.getIdToken();
+    } catch (fbErr) {
+      console.warn("Firebase sign up skipped, creating backend user:", fbErr);
+    }
 
     const apiBase = getApiUrl();
     const res = await fetch(`${apiBase}/api/auth/register`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${idToken}`,
+        ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
       },
       body: JSON.stringify({ email, password: pass, full_name: fullName, role }),
     });
@@ -128,13 +182,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const data = await res.json();
-    setUser(data.user);
+    saveSession(data.user, data.token || idToken);
   };
 
   const signInWithGoogle = async () => {
     const userCred = await signInWithPopup(auth, googleProvider);
     const idToken = await userCred.user.getIdToken();
-    setToken(idToken);
+    const apiBase = getApiUrl();
+    const meRes = await fetch(`${apiBase}/api/auth/me`, {
+      headers: { Authorization: `Bearer ${idToken}` },
+    });
+    if (meRes.ok) {
+      const userData = await meRes.json();
+      saveSession(userData, idToken);
+    }
   };
 
   const resetPassword = async (email: string) => {
@@ -148,9 +209,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
-    await firebaseSignOut(auth);
-    setToken(null);
-    setUser(null);
+    try {
+      await firebaseSignOut(auth);
+    } catch {
+      // Ignore firebase signout error if offline or uninitialized
+    }
+    saveSession(null, null);
   };
 
   return (
