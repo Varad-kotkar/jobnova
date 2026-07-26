@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useAuth } from "@/context/auth-context";
 import { getApiUrl } from "@/lib/api";
 
 interface RecruiterApplicantItem {
@@ -28,6 +29,7 @@ interface RecruiterApplicantItem {
 }
 
 export default function RecruiterPortalPage() {
+  const { token, user } = useAuth();
   const [activeTab, setActiveTab] = useState<"applicants" | "post">("applicants");
   const [applicants, setApplicants] = useState<RecruiterApplicantItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,15 +41,18 @@ export default function RecruiterPortalPage() {
   const [description, setDescription] = useState("");
   const [skillsStr, setSkillsStr] = useState("Python, FastAPI, React, PostgreSQL");
   const [postedNotice, setPostedNotice] = useState(false);
+  const [postError, setPostError] = useState<string | null>(null);
   const [posting, setPosting] = useState(false);
+
+  const verificationStatus = user?.recruiter_profile?.verification_status || (user?.role === "admin" ? "approved" : "pending");
+  const isApproved = user?.role === "admin" || verificationStatus === "approved";
 
   useEffect(() => {
     fetchApplicants();
-  }, []);
+  }, [token]);
 
   const fetchApplicants = () => {
-    const token = localStorage.getItem("jobnova_token");
-    if (token && token !== "demo-jwt-token") {
+    if (token) {
       const apiBase = getApiUrl();
       fetch(`${apiBase}/api/recruiter/applications`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -64,8 +69,7 @@ export default function RecruiterPortalPage() {
   };
 
   const handleStatusChange = async (appId: string, newStatus: string) => {
-    const token = localStorage.getItem("jobnova_token");
-    if (token && token !== "demo-jwt-token") {
+    if (token) {
       const apiBase = getApiUrl();
       try {
         const res = await fetch(`${apiBase}/api/recruiter/applications/${appId}/status`, {
@@ -89,11 +93,16 @@ export default function RecruiterPortalPage() {
 
   const handlePostJobSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setPostError(null);
     if (!title.trim() || !companyName.trim() || !description.trim()) return;
 
+    if (!isApproved) {
+      setPostError(`Recruiter verification required. Current status: '${verificationStatus}'. Only approved recruiters may post jobs.`);
+      return;
+    }
+
     setPosting(true);
-    const token = localStorage.getItem("jobnova_token");
-    if (token && token !== "demo-jwt-token") {
+    if (token) {
       const apiBase = getApiUrl();
       try {
         const skillsList = skillsStr.split(",").map((s) => s.trim()).filter(Boolean);
@@ -117,14 +126,19 @@ export default function RecruiterPortalPage() {
           setPostedNotice(true);
           setTitle("");
           setDescription("");
-          setTimeout(() => setPostedNotice(false), 3000);
+          setTimeout(() => setPostedNotice(false), 4000);
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          setPostError(errData.detail || errData.error?.message || "Job posting rejected by backend policy.");
         }
       } catch (err) {
         console.warn("Job posting error:", err);
+        setPostError("Failed to submit job posting. Check network connection.");
       } finally {
         setPosting(false);
       }
     } else {
+      setPostError("Please sign in with a recruiter account to post jobs.");
       setPosting(false);
     }
   };

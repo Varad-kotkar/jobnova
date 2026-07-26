@@ -20,7 +20,7 @@ interface NotificationItem {
 
 export default function SiteHeader() {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
+  const { user, token, logout } = useAuth();
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -40,8 +40,7 @@ export default function SiteHeader() {
   }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem("jobnova_token");
-    if (token && token !== "demo-jwt-token") {
+    if (token) {
       const apiBase = getApiUrl();
       fetch(`${apiBase}/api/notifications`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -55,11 +54,10 @@ export default function SiteHeader() {
         })
         .catch((err) => console.warn("Notifications fetch error:", err));
     }
-  }, [user]);
+  }, [token, user]);
 
   const handleMarkAllRead = async () => {
-    const token = localStorage.getItem("jobnova_token");
-    if (token && token !== "demo-jwt-token") {
+    if (token) {
       const apiBase = getApiUrl();
       try {
         await fetch(`${apiBase}/api/notifications/read-all`, {

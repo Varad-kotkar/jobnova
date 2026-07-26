@@ -59,7 +59,7 @@ interface DashboardStatsData {
 export default function DashboardPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
 
   const [activeTab, setActiveTab] = useState<"overview" | "saved" | "applied" | "profile">(
     (searchParams.get("tab") as any) || "overview"
@@ -75,8 +75,7 @@ export default function DashboardPage() {
     setProfile(getUserProfile());
 
     // Fetch live dashboard stats from API if authenticated
-    const token = localStorage.getItem("jobnova_token");
-    if (token && token !== "demo-jwt-token") {
+    if (token) {
       const apiBase = getApiUrl();
       fetch(`${apiBase}/api/dashboard/stats`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -87,7 +86,7 @@ export default function DashboardPage() {
         })
         .catch((err) => console.warn("Dashboard stats fetch warning:", err));
     }
-  }, []);
+  }, [token]);
 
   const handleUnsave = (id: string, slug: string, title: string, company: string, location: string, remote: boolean) => {
     toggleSaveJob({ id, slug, title, company, location, remote });

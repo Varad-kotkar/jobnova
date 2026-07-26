@@ -45,7 +45,7 @@ async def list_jobs(
     job_responses = [JobResponse.from_orm_model(job) for job in jobs]
     meta_response = PaginationMeta(**meta)
     res = JobListResponse(items=job_responses, pagination=meta_response)
-    await CacheManager.set(cache_key, res.dict(), ttl_seconds=300)
+    await CacheManager.set(cache_key, res.model_dump(), ttl_seconds=300)
     return res
 
 

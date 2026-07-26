@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useAuth } from "@/context/auth-context";
 import { getApiUrl } from "@/lib/api";
 import { getUserProfile, saveUserProfile, UserProfileData } from "@/lib/storage";
 
 export default function ProfilePage() {
+  const { token, user } = useAuth();
   const [profile, setProfile] = useState<UserProfileData>(getUserProfile());
   const [newSkill, setNewSkill] = useState("");
   const [savedNotice, setSavedNotice] = useState(false);
@@ -16,9 +18,8 @@ export default function ProfilePage() {
   useEffect(() => {
     setProfile(getUserProfile());
 
-    // Fetch primary resume version from API if token exists
-    const token = localStorage.getItem("jobnova_token");
-    if (token && token !== "demo-jwt-token") {
+    // Fetch primary resume version from API if authenticated
+    if (token) {
       const apiBase = getApiUrl();
       fetch(`${apiBase}/api/users/resume/primary`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -32,7 +33,7 @@ export default function ProfilePage() {
         })
         .catch((err) => console.warn("Primary resume fetch warning:", err));
     }
-  }, []);
+  }, [token]);
 
   const handleChange = (field: keyof UserProfileData, value: any) => {
     const updated = { ...profile, [field]: value };
@@ -49,8 +50,7 @@ export default function ProfilePage() {
     const file = files[0];
     setUploading(true);
 
-    const token = localStorage.getItem("jobnova_token");
-    if (token && token !== "demo-jwt-token") {
+    if (token) {
       const apiBase = getApiUrl();
       const formData = new FormData();
       formData.append("file", file);

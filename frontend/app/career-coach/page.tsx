@@ -77,11 +77,10 @@ export default function CareerCoachPage() {
   const [authModalOpen, setAuthModalOpen] = useState(false);
 
   useEffect(() => {
-    const activeToken = token || localStorage.getItem("jobnova_token");
-    if (activeToken) {
+    if (token) {
       const apiBase = getApiUrl();
       fetch(`${apiBase}/api/users/career-roadmap`, {
-        headers: { Authorization: `Bearer ${activeToken}` },
+        headers: { Authorization: `Bearer ${token}` },
       })
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {

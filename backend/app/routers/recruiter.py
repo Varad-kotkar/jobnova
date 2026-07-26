@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..core.rbac import require_roles
+from ..core.rbac import require_roles, require_verified_recruiter
 from ..core.security import get_current_user
 from ..database.session import get_session
 from ..models.user import User
@@ -30,7 +30,7 @@ class UpdateApplicantStatusPayload(BaseModel):
 @router.post("/jobs", status_code=status.HTTP_201_CREATED)
 async def create_recruiter_job_endpoint(
     payload: CreateRecruiterJobPayload,
-    current_user: User = Depends(require_roles("recruiter", "admin")),
+    current_user: User = Depends(require_verified_recruiter),
     session: AsyncSession = Depends(get_session),
 ) -> Dict[str, Any]:
     return await RecruiterService.create_recruiter_job(
@@ -43,6 +43,7 @@ async def create_recruiter_job_endpoint(
         skills=payload.skills,
         company_name=payload.company_name,
     )
+
 
 
 @router.get("/applications", status_code=status.HTTP_200_OK)

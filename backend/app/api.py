@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from .routers.admin import router as admin_router
 from .routers.ai_match import router as ai_match_router
 from .routers.applications import router as applications_router
 from .routers.ats_analyzer import router as ats_analyzer_router
@@ -23,6 +24,7 @@ from .routers.users import router as users_router
 def create_api_router() -> APIRouter:
     router = APIRouter()
     router.include_router(health_router)
+    router.include_router(admin_router)
     router.include_router(auth_router)
     router.include_router(users_router)
     router.include_router(resumes_router)
@@ -41,3 +43,4 @@ def create_api_router() -> APIRouter:
     router.include_router(career_coach_router)
     router.include_router(ingestion_router)
     return router
+

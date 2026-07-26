@@ -50,14 +50,17 @@ export function isJobSaved(jobId: string): boolean {
   return list.some((item) => item.id === jobId);
 }
 
-export function toggleSaveJob(job: {
-  id: string;
-  slug: string;
-  title: string;
-  company: string;
-  location: string;
-  remote: boolean;
-}): boolean {
+export function toggleSaveJob(
+  job: {
+    id: string;
+    slug: string;
+    title: string;
+    company: string;
+    location: string;
+    remote: boolean;
+  },
+  token?: string | null
+): boolean {
   if (typeof window === "undefined") return false;
   const list = getSavedJobs();
   const index = list.findIndex((item) => item.id === job.id);
@@ -83,8 +86,7 @@ export function toggleSaveJob(job: {
   window.dispatchEvent(new Event("jobnova_saved_jobs_changed"));
 
   // Async sync with backend if token exists
-  const token = localStorage.getItem("jobnova_token");
-  if (token && token !== "demo-jwt-token") {
+  if (token) {
     const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
     const method = nowSaved ? "POST" : "DELETE";
     fetch(`${apiBase}/api/jobs/${job.id}/save`, {
@@ -109,12 +111,15 @@ export function getAppliedJobs(): AppliedJobItem[] {
   }
 }
 
-export function recordJobApplication(job: {
-  id: string;
-  slug: string;
-  title: string;
-  company: string;
-}): void {
+export function recordJobApplication(
+  job: {
+    id: string;
+    slug: string;
+    title: string;
+    company: string;
+  },
+  token?: string | null
+): void {
   if (typeof window === "undefined") return;
   const list = getAppliedJobs();
   if (!list.some((item) => item.id === job.id)) {
@@ -130,8 +135,7 @@ export function recordJobApplication(job: {
     window.dispatchEvent(new Event("jobnova_applied_jobs_changed"));
 
     // Async sync with backend if token exists
-    const token = localStorage.getItem("jobnova_token");
-    if (token && token !== "demo-jwt-token") {
+    if (token) {
       const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
       fetch(`${apiBase}/api/applications`, {
         method: "POST",

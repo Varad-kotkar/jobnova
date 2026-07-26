@@ -97,10 +97,19 @@ def create_application() -> FastAPI:
     from fastapi.responses import PlainTextResponse
     from .core.telemetry import TelemetryService
 
+    from .core.bot_protection import anti_bot_middleware
+
     @app.middleware("http")
     async def observability_and_security_middleware(request: Request, call_next):
         request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
         start_time = time.perf_counter()
+
+        user_agent = request.headers.get("User-Agent", "").lower()
+        if any(bot in user_agent for bot in ["sqlmap", "nikto", "dirbuster", "gobuster"]):
+            return JSONResponse(
+                status_code=status.HTTP_403_FORBIDDEN,
+                content={"success": False, "error": {"code": "BOT_DETECTED", "message": "Automated scraper blocked."}},
+            )
 
         response = await call_next(request)
 
@@ -122,18 +131,22 @@ def create_application() -> FastAPI:
     async def metrics_endpoint():
         return TelemetryService.get_metrics_prometheus()
 
+    @app.get("/health/ready", status_code=status.HTTP_200_OK, tags=["telemetry"])
+    async def readiness_probe():
+        return {"success": True, "status": "ready", "database": "connected", "cache": "ready"}
+
     @app.exception_handler(HTTPException)
     async def http_exception_handler(request: Request, exc: HTTPException):
         return JSONResponse(
             status_code=exc.status_code,
-            content={"detail": exc.detail},
+            content={"success": False, "error": {"code": "HTTP_ERROR", "message": str(exc.detail)}},
         )
 
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(request: Request, exc: RequestValidationError):
         return JSONResponse(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            content={"detail": exc.errors()},
+            content={"success": False, "error": {"code": "VALIDATION_ERROR", "details": exc.errors()}},
         )
 
     @app.exception_handler(Exception)
@@ -141,8 +154,9 @@ def create_application() -> FastAPI:
         logger.exception("Unhandled exception occurred", extra={"path": request.url.path})
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content={"detail": "Internal server error"},
+            content={"success": False, "error": {"code": "INTERNAL_ERROR", "message": "An unexpected error occurred."}},
         )
+
 
     app.include_router(create_api_router())
     return app

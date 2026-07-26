@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useAuth } from "@/context/auth-context";
 import { getApiUrl } from "@/lib/api";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { isJobSaved, toggleSaveJob, recordJobApplication } from "@/lib/storage";
@@ -82,6 +83,7 @@ interface InterviewPrepData {
 }
 
 export default function JobDetail({ job }: JobDetailProps) {
+  const { token } = useAuth();
   const [saved, setSaved] = useState(false);
   const [applied, setApplied] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -108,9 +110,8 @@ export default function JobDetail({ job }: JobDetailProps) {
   useEffect(() => {
     setSaved(isJobSaved(job.id));
 
-    // Fetch AI match score from API if token exists
-    const token = localStorage.getItem("jobnova_token");
-    if (token && token !== "demo-jwt-token") {
+    // Fetch AI match score from API if authenticated
+    if (token) {
       const apiBase = getApiUrl();
       fetch(`${apiBase}/api/jobs/${job.id}/match-score`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -123,15 +124,14 @@ export default function JobDetail({ job }: JobDetailProps) {
         })
         .catch((err) => console.warn("AI match fetch warning:", err));
     }
-  }, [job.id]);
+  }, [job.id, token]);
 
   const handleRunAtsAnalysis = async () => {
     setShowAtsModal(true);
     if (atsData) return;
 
     setAnalyzingAts(true);
-    const token = localStorage.getItem("jobnova_token");
-    if (token && token !== "demo-jwt-token") {
+    if (token) {
       const apiBase = getApiUrl();
       try {
         const res = await fetch(`${apiBase}/api/users/resume/ats-score?job_id=${job.id}`, {
@@ -155,8 +155,7 @@ export default function JobDetail({ job }: JobDetailProps) {
     setShowCoverLetterModal(true);
     setGeneratingLetter(true);
 
-    const token = localStorage.getItem("jobnova_token");
-    if (token && token !== "demo-jwt-token") {
+    if (token) {
       const apiBase = getApiUrl();
       try {
         const res = await fetch(`${apiBase}/api/jobs/${job.id}/cover-letter`, {
@@ -186,8 +185,7 @@ export default function JobDetail({ job }: JobDetailProps) {
     if (interviewData) return;
 
     setLoadingInterview(true);
-    const token = localStorage.getItem("jobnova_token");
-    if (token && token !== "demo-jwt-token") {
+    if (token) {
       const apiBase = getApiUrl();
       try {
         const res = await fetch(`${apiBase}/api/jobs/${job.id}/interview-prep`, {

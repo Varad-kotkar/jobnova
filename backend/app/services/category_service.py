@@ -141,7 +141,9 @@ class CategoryService:
         total = category_meta["active_jobs"]
         total_pages = max(1, math.ceil(total / page_size)) if total > 0 else 1
 
-        pagination_meta = {
+        return {
+            "category": category_meta,
+            "jobs": jobs,
             "page": page,
             "page_size": page_size,
             "total": total,
@@ -150,4 +152,3 @@ class CategoryService:
             "has_previous": page > 1,
         }
 
-        return category_meta, jobs, pagination_meta
