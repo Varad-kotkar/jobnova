@@ -1,5 +1,6 @@
 import Link from "next/link";
 import CompanyControls from "@/components/company-controls";
+import { CompanyLogo } from "@/components/job-card";
 import { getApiUrl } from "@/lib/api";
 
 interface CompanyItem {
@@ -10,6 +11,7 @@ interface CompanyItem {
   industry: string;
   size: string;
   headquarters: string;
+  logo_url?: string;
   active_jobs: number;
   remote_jobs: number;
   locations: string[];
@@ -77,9 +79,7 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
                   <div>
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-900 font-bold text-white text-base">
-                          {initial}
-                        </div>
+                        <CompanyLogo name={comp.name} logoUrl={comp.logo_url} />
                         <div>
                           <h3 className="text-sm font-bold text-gray-900 line-clamp-1">{comp.name}</h3>
                           <p className="text-[11px] text-gray-500">{comp.industry || "Software & Technology"}</p>

@@ -145,7 +145,29 @@ async def query_jobs(
         count_query = count_query.where(and_(*filters))
 
     result = await session.execute(query)
-    jobs = result.scalars().all()
+    all_jobs = result.scalars().all()
+
+    # Company Diversity Cap: Max 3 jobs per company per page to ensure balanced distribution
+    diverse_jobs = []
+    company_counts: Dict[str, int] = {}
+    for job in all_jobs:
+        comp_name = job.company.name if job.company else "Unknown"
+        count = company_counts.get(comp_name, 0)
+        if count < 3:
+            diverse_jobs.append(job)
+            company_counts[comp_name] = count + 1
+
+    # If diverse_jobs has space, backfill with remaining jobs
+    if len(diverse_jobs) < len(all_jobs) and len(diverse_jobs) < page_size:
+        seen_ids = {j.id for j in diverse_jobs}
+        for j in all_jobs:
+            if j.id not in seen_ids:
+                diverse_jobs.append(j)
+                seen_ids.add(j.id)
+                if len(diverse_jobs) >= page_size:
+                    break
+
+    jobs = diverse_jobs[:page_size]
 
     count_result = await session.execute(count_query)
     total = count_result.scalar_one()
