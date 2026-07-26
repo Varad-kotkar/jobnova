@@ -83,10 +83,20 @@ def create_application() -> FastAPI:
         lifespan=lifespan,
     )
 
-    origins = [origin.strip() for origin in settings.allowed_origins.split(",") if origin.strip()]
+    default_origins = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://jobnova-w5xp.onrender.com",
+        "https://jobnova-gata-8wrmrvto5-varad-kotkars-projects.vercel.app",
+    ]
+    extra_cors = (settings.cors_origins or "").split(",")
+    env_origins = [origin.strip() for origin in (settings.allowed_origins + "," + ",".join(extra_cors)).split(",") if origin.strip()]
+    all_origins = list(dict.fromkeys(default_origins + env_origins))
+
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=origins if origins else ["http://localhost:3000"],
+        allow_origins=all_origins,
+        allow_origin_regex=r"https://.*\.vercel\.app|http://localhost:\d+|http://127\.0\.0\.1:\d+",
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
