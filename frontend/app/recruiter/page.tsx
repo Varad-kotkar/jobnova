@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
 import { getApiUrl } from "@/lib/api";
 
@@ -29,7 +30,8 @@ interface RecruiterApplicantItem {
 }
 
 export default function RecruiterPortalPage() {
-  const { token, user } = useAuth();
+  const router = useRouter();
+  const { token, user, loading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<"applicants" | "post">("applicants");
   const [applicants, setApplicants] = useState<RecruiterApplicantItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,8 +46,15 @@ export default function RecruiterPortalPage() {
   const [postError, setPostError] = useState<string | null>(null);
   const [posting, setPosting] = useState(false);
 
-  const verificationStatus = user?.recruiter_profile?.verification_status || (user?.role === "admin" ? "approved" : "pending");
+  const verificationStatus = (user as any)?.recruiter_profile?.verification_status || (user?.role === "admin" ? "approved" : "pending");
   const isApproved = user?.role === "admin" || verificationStatus === "approved";
+
+  // Auth guard
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.replace("/");
+    }
+  }, [user, authLoading, router]);
 
   useEffect(() => {
     fetchApplicants();

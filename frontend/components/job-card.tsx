@@ -271,7 +271,7 @@ export function JobCard(props: JobCardProps) {
             {extraLocCount > 0 && <span className="text-blue-600 font-semibold"> +{extraLocCount} more</span>}
           </span>
 
-          {job.remote && (
+          {job.remote && !displayLocation.toLowerCase().includes("remote") && (
             <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200/60">
               Remote
             </span>

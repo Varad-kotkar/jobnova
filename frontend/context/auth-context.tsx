@@ -1,11 +1,13 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { getApiUrl } from "@/lib/api";
 import {
   auth,
   googleProvider,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   firebaseSignOut,
@@ -81,6 +83,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Handle Google redirect result on mount (popup-blocked fallback)
+  useEffect(() => {
+    getRedirectResult(auth).then(async (result) => {
+      if (result?.user) {
+        const idToken = await result.user.getIdToken();
+        const apiBase = getApiUrl();
+        const meRes = await fetch(`${apiBase}/api/auth/me`, {
+          headers: { Authorization: `Bearer ${idToken}` },
+        });
+        if (meRes.ok) {
+          const userData = await meRes.json();
+          saveSession(userData, idToken);
+        }
+      }
+    }).catch(() => {
+      // No redirect pending — normal load
+    });
+  }, []);
+
   useEffect(() => {
     const unsubscribe = onIdTokenChanged(auth, async (fbUser: FirebaseUser | null) => {
       if (fbUser) {
@@ -95,7 +116,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const userData = await meRes.json();
             saveSession(userData, idToken);
           } else {
-            // Upsert / initialize user if not present
+            // Upsert / initialize user if not present (first Google sign-in)
             const initRes = await fetch(`${apiBase}/api/auth/register`, {
               method: "POST",
               headers: {
@@ -115,6 +136,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         } catch (err) {
           console.error("Error fetching authenticated user context:", err);
+        }
+      } else {
+        // Firebase explicitly fired null — user signed out on Firebase side
+        // Only clear if we previously had a Firebase-managed session
+        const storedToken = typeof window !== "undefined" ? localStorage.getItem("jobnova_session_token") : null;
+        if (storedToken && storedToken.length > 100) {
+          // Heuristic: JWT tokens are long; Firebase ID tokens are very long
+          saveSession(null, null);
         }
       }
       setLoading(false);
@@ -188,15 +217,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signInWithGoogle = async () => {
-    const userCred = await signInWithPopup(auth, googleProvider);
-    const idToken = await userCred.user.getIdToken();
-    const apiBase = getApiUrl();
-    const meRes = await fetch(`${apiBase}/api/auth/me`, {
-      headers: { Authorization: `Bearer ${idToken}` },
-    });
-    if (meRes.ok) {
-      const userData = await meRes.json();
-      saveSession(userData, idToken);
+    try {
+      const userCred = await signInWithPopup(auth, googleProvider);
+      const idToken = await userCred.user.getIdToken();
+      const apiBase = getApiUrl();
+      const meRes = await fetch(`${apiBase}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${idToken}` },
+      });
+      if (meRes.ok) {
+        const userData = await meRes.json();
+        saveSession(userData, idToken);
+      }
+    } catch (err: any) {
+      if (err?.code === "auth/popup-blocked" || err?.code === "auth/popup-closed-by-user") {
+        console.warn("Popup blocked or closed, falling back to signInWithRedirect...");
+        await signInWithRedirect(auth, googleProvider);
+        return;
+      }
+      if (err?.code === "auth/unauthorized-domain") {
+        throw new Error(
+          "This domain is not authorized for Google Sign-In in Firebase Console. Please add your domain to Firebase Console -> Authentication -> Settings -> Authorized Domains."
+        );
+      }
+      throw new Error(err?.message || "Google sign in failed. Please try again.");
     }
   };
 

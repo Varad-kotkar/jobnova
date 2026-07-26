@@ -25,7 +25,11 @@ class UserProfile(Base):
     preferred_locations = Column(JSON, nullable=True, default=list)
     remote_preference = Column(Boolean, nullable=True, default=True)
     salary_expectation = Column(String(100), nullable=True)
-    completion_percentage = Column(Integer, nullable=False, default=30)
+    completion_percentage = Column(Integer, nullable=False, default=15)
+    onboarding_completed = Column(Boolean, nullable=False, default=False)
+    availability = Column(String(100), nullable=True)  # Immediately, 2 weeks, 1 month, etc.
+    work_authorization = Column(String(100), nullable=True)  # Citizen, PR, Visa required
+    experience_years = Column(Integer, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=sa.func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now(), nullable=False)
 

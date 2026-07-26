@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { AuthProvider } from "@/context/auth-context";
 import SiteHeader from "@/components/site-header";
 import SiteFooter from "@/components/site-footer";
+import AICopilot from "@/components/ai-copilot";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://jobnova.vercel.app"),
@@ -55,6 +56,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <SiteHeader />
           <div className="flex-1">{children}</div>
           <SiteFooter />
+          <AICopilot />
         </AuthProvider>
       </body>
     </html>

@@ -59,7 +59,7 @@ interface DashboardStatsData {
 export default function DashboardPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, token } = useAuth();
+  const { user, token, loading } = useAuth();
 
   const [activeTab, setActiveTab] = useState<"overview" | "saved" | "applied" | "profile">(
     (searchParams.get("tab") as any) || "overview"
@@ -68,6 +68,13 @@ export default function DashboardPage() {
   const [appliedJobs, setAppliedJobs] = useState<AppliedJobItem[]>([]);
   const [profile, setProfile] = useState<UserProfileData>(getUserProfile());
   const [stats, setStats] = useState<DashboardStatsData | null>(null);
+
+  // Auth guard — redirect unauthenticated users
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace("/?signin=1");
+    }
+  }, [user, loading, router]);
 
   useEffect(() => {
     setSavedJobs(getSavedJobs());
@@ -104,6 +111,14 @@ export default function DashboardPage() {
     { id: "applied", label: `Applied (${totalAppsCount})` },
     { id: "profile", label: "Profile & Resume" },
   ];
+
+  if (loading || !user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="animate-spin h-8 w-8 rounded-full border-4 border-blue-600 border-t-transparent" />
+      </div>
+    );
+  }
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6">

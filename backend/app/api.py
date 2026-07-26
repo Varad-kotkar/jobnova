@@ -18,29 +18,43 @@ from .routers.notifications import router as notifications_router
 from .routers.recruiter import router as recruiter_router
 from .routers.resumes import router as resumes_router
 from .routers.saved_jobs import router as saved_jobs_router
+from .routers.stats import router as stats_router
 from .routers.users import router as users_router
+
+
+ALL_ROUTERS = [
+    health_router,
+    admin_router,
+    auth_router,
+    users_router,
+    resumes_router,
+    notifications_router,
+    recruiter_router,
+    ats_analyzer_router,
+    dashboard_router,
+    jobs_router,
+    companies_router,
+    categories_router,
+    saved_jobs_router,
+    applications_router,
+    ai_match_router,
+    cover_letter_router,
+    interview_coach_router,
+    career_coach_router,
+    ingestion_router,
+    stats_router,
+]
+
+
+def register_api_routers(app: Any) -> None:
+    for r in ALL_ROUTERS:
+        app.include_router(r)
 
 
 def create_api_router() -> APIRouter:
     router = APIRouter()
-    router.include_router(health_router)
-    router.include_router(admin_router)
-    router.include_router(auth_router)
-    router.include_router(users_router)
-    router.include_router(resumes_router)
-    router.include_router(notifications_router)
-    router.include_router(recruiter_router)
-    router.include_router(ats_analyzer_router)
-    router.include_router(dashboard_router)
-    router.include_router(jobs_router)
-    router.include_router(companies_router)
-    router.include_router(categories_router)
-    router.include_router(saved_jobs_router)
-    router.include_router(applications_router)
-    router.include_router(ai_match_router)
-    router.include_router(cover_letter_router)
-    router.include_router(interview_coach_router)
-    router.include_router(career_coach_router)
-    router.include_router(ingestion_router)
+    for r in ALL_ROUTERS:
+        router.include_router(r)
     return router
+
 

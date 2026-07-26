@@ -25,6 +25,7 @@ export default function SiteHeader() {
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [notifMenuOpen, setNotifMenuOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [savedCount, setSavedCount] = useState(0);
 
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -81,6 +82,7 @@ export default function SiteHeader() {
     { href: "/jobs", label: "Jobs" },
     { href: "/jobs?remote=true", label: "Remote" },
     { href: "/companies", label: "Companies" },
+    { href: "/tracker", label: "Job Tracker" },
     { href: "/career-coach", label: "AI Career Coach" },
     { href: "/recruiter", label: "Employers" },
   ];
@@ -280,9 +282,130 @@ export default function SiteHeader() {
                 </button>
               </div>
             )}
+          {/* Mobile Hamburger */}
+            <button
+              type="button"
+              className="md:hidden rounded-lg border border-gray-200 bg-white p-2 text-gray-600 hover:bg-gray-50 transition ml-1"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label="Toggle menu"
+            >
+              {mobileMenuOpen ? (
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              )}
+            </button>
           </div>
         </div>
       </header>
+
+      {/* Mobile Menu Drawer */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          {/* Drawer */}
+          <div className="absolute top-0 right-0 bottom-0 w-72 bg-white shadow-2xl flex flex-col">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <span className="font-bold text-gray-900">Menu</span>
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                className="rounded-lg p-1 text-gray-400 hover:bg-gray-100"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <nav className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href as any}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center rounded-xl px-4 py-3 text-sm font-semibold transition ${
+                    pathname === link.href
+                      ? "bg-blue-50 text-blue-700"
+                      : "text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  {link.label}
+                </Link>
+              ))}
+
+              {user && (
+                <>
+                  <div className="my-2 h-px bg-gray-100" />
+                  <Link
+                    href="/dashboard"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center rounded-xl px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition"
+                  >
+                    My Dashboard
+                  </Link>
+                  <Link
+                    href="/profile"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center rounded-xl px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition"
+                  >
+                    Profile & Resume
+                  </Link>
+                  <Link
+                    href="/tracker"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center rounded-xl px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition"
+                  >
+                    Job Tracker
+                  </Link>
+                </>
+              )}
+            </nav>
+
+            <div className="border-t border-gray-100 px-4 py-4">
+              {user ? (
+                <div className="space-y-2">
+                  <div className="px-2 py-1">
+                    <p className="text-xs font-bold text-gray-900 truncate">{user.full_name || "User"}</p>
+                    <p className="text-[11px] text-gray-500 truncate">{user.email}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setMobileMenuOpen(false); logout(); }}
+                    className="w-full rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-xs font-bold text-rose-600 hover:bg-rose-100 transition"
+                  >
+                    Log Out
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setMobileMenuOpen(false); openAuth("signup"); }}
+                    className="rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-blue-700 transition"
+                  >
+                    Get Started
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setMobileMenuOpen(false); openAuth("signin"); }}
+                    className="rounded-xl border border-gray-200 px-4 py-2.5 text-xs font-bold text-gray-700 hover:bg-gray-50 transition"
+                  >
+                    Sign In
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} initialMode={authMode} />
     </>

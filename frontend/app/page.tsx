@@ -32,6 +32,29 @@ export default async function HomePage(props: HomePageProps) {
 
   const trustedCompanies = ["Google", "Microsoft", "Amazon", "NVIDIA", "Flipkart", "Razorpay", "Swiggy", "Zomato", "Zoho"];
 
+  // Fetch live stats from API
+  let statsData = {
+    total_jobs: 420,
+    remote_jobs: 160,
+    total_companies: 210,
+    total_applications: 95,
+  };
+  try {
+    const { getApiUrl } = await import("@/lib/api");
+    const apiRes = await fetch(`${getApiUrl()}/api/stats`, { next: { revalidate: 60 } });
+    if (apiRes.ok) {
+      const json = await apiRes.json();
+      if (json.data) {
+        statsData = {
+          total_jobs: json.data.total_jobs || 420,
+          remote_jobs: json.data.remote_jobs || 160,
+          total_companies: json.data.total_companies || 210,
+          total_applications: json.data.total_applications || 95,
+        };
+      }
+    }
+  } catch {}
+
   return (
     <div className="space-y-16 pb-16 bg-white">
       {/* Hero Section */}
@@ -89,30 +112,22 @@ export default async function HomePage(props: HomePageProps) {
 
       {/* Live Platform Statistics Counters */}
       <section className="mx-auto max-w-7xl px-4 sm:px-6">
-        <div className="rounded-3xl border border-blue-100 bg-gradient-to-r from-blue-50/80 via-indigo-50/50 to-purple-50/80 p-8 shadow-subtle grid grid-cols-2 md:grid-cols-6 gap-6 text-center">
+        <div className="rounded-3xl border border-blue-100 bg-gradient-to-r from-blue-50/80 via-indigo-50/50 to-purple-50/80 p-8 shadow-subtle grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
           <div>
-            <p className="text-2xl sm:text-3xl font-black text-blue-900">420+</p>
+            <p className="text-2xl sm:text-3xl font-black text-blue-900">{statsData.total_jobs}+</p>
             <p className="text-xs font-bold text-blue-700/80 mt-1 uppercase tracking-wide">Live Roles</p>
           </div>
           <div>
-            <p className="text-2xl sm:text-3xl font-black text-indigo-900">160+</p>
+            <p className="text-2xl sm:text-3xl font-black text-indigo-900">{statsData.remote_jobs}+</p>
             <p className="text-xs font-bold text-indigo-700/80 mt-1 uppercase tracking-wide">Remote Jobs</p>
           </div>
           <div>
-            <p className="text-2xl sm:text-3xl font-black text-emerald-900">95+</p>
-            <p className="text-xs font-bold text-emerald-700/80 mt-1 uppercase tracking-wide">Internships</p>
+            <p className="text-2xl sm:text-3xl font-black text-emerald-900">{statsData.total_companies}+</p>
+            <p className="text-xs font-bold text-emerald-700/80 mt-1 uppercase tracking-wide">Companies</p>
           </div>
           <div>
-            <p className="text-2xl sm:text-3xl font-black text-purple-900">72+</p>
-            <p className="text-xs font-bold text-purple-700/80 mt-1 uppercase tracking-wide">Data Analytics</p>
-          </div>
-          <div>
-            <p className="text-2xl sm:text-3xl font-black text-rose-900">34+</p>
-            <p className="text-xs font-bold text-rose-700/80 mt-1 uppercase tracking-wide">AI & ML Roles</p>
-          </div>
-          <div>
-            <p className="text-2xl sm:text-3xl font-black text-amber-900">210+</p>
-            <p className="text-xs font-bold text-amber-700/80 mt-1 uppercase tracking-wide">Companies</p>
+            <p className="text-2xl sm:text-3xl font-black text-purple-900">{statsData.total_applications}+</p>
+            <p className="text-xs font-bold text-purple-700/80 mt-1 uppercase tracking-wide">Applications</p>
           </div>
         </div>
       </section>

@@ -33,6 +33,8 @@ class UserService:
             "email": user.email,
             "full_name": user.full_name,
             "avatar_url": user.avatar_url,
+            "role": user.role,
+            "is_verified": user.is_verified,
             "profile": {
                 "headline": prof.headline if prof else None,
                 "bio": prof.bio if prof else None,
@@ -46,7 +48,11 @@ class UserService:
                 "preferred_locations": prof.preferred_locations if prof else [],
                 "remote_preference": prof.remote_preference if prof else True,
                 "salary_expectation": prof.salary_expectation if prof else None,
-                "completion_percentage": prof.completion_percentage if prof else 30,
+                "completion_percentage": prof.completion_percentage if prof else 15,
+                "onboarding_completed": prof.onboarding_completed if prof else False,
+                "availability": prof.availability if prof else None,
+                "work_authorization": prof.work_authorization if prof else None,
+                "experience_years": prof.experience_years if prof else None,
             },
         }
 
@@ -87,23 +93,29 @@ class UserService:
             "preferred_locations",
             "remote_preference",
             "salary_expectation",
+            "onboarding_completed",
+            "availability",
+            "work_authorization",
+            "experience_years",
         ]
 
         for field in profile_fields:
             if field in update_data:
                 setattr(prof, field, update_data[field])
 
-        # Compute completion percentage dynamically
+        # Compute completion percentage dynamically (10 fields, each worth 10%)
         filled = 0
-        total_fields = 6
         if prof.headline: filled += 1
-        if prof.bio or prof.location: filled += 1
-        if prof.skills and len(prof.skills) > 0: filled += 1
-        if prof.resume_url: filled += 1
+        if prof.bio: filled += 1
+        if prof.location: filled += 1
+        if prof.skills and len(prof.skills) > 0: filled += 2  # skills worth double
+        if prof.resume_url: filled += 2  # resume worth double
         if prof.github_url or prof.linkedin_url: filled += 1
         if prof.preferred_roles and len(prof.preferred_roles) > 0: filled += 1
+        if prof.salary_expectation: filled += 1
+        if prof.preferred_locations and len(prof.preferred_locations) > 0: filled += 1
 
-        prof.completion_percentage = int((filled / total_fields) * 100)
+        prof.completion_percentage = min(100, int((filled / 10) * 100))
 
         await session.commit()
         return await UserService.get_user_profile(session, user_id)

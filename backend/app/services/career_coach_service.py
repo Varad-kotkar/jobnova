@@ -102,7 +102,7 @@ class CareerCoachService:
             "AI / Cloud Solutions Engineer",
         ]
 
-        confidence_score = min(98, max(45, (len(candidate_skills) * 6) + (len(applications) * 4) + (25 if primary_resume else 0)))
+        confidence_score = min(98, max(45, (len(candidate_skills) * 6) + (len(applications) * 4) + (30 if primary_resume else 15)))
 
         return {
             "career_stage": career_stage,

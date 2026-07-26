@@ -3,10 +3,11 @@ uvicorn[standard]
 sqlalchemy
 alembic
 asyncpg
+aiosqlite
 httpx
 beautifulsoup4
 lxml
-pydantic
+pydantic[email]
 pydantic-settings
 python-dotenv
 loguru
@@ -15,3 +16,4 @@ python-slugify
 orjson
 aiofiles
 greenlet
+python-multipart

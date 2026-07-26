@@ -80,6 +80,20 @@ class RecruiterService:
         )
         session.add(new_job)
 
+        # Get or create recruiter profile & link to company
+        rec_query = select(RecruiterProfile).where(RecruiterProfile.user_id == user_id)
+        rec_res = await session.execute(rec_query)
+        rec_profile = rec_res.scalars().first()
+        if not rec_profile:
+            rec_profile = RecruiterProfile(
+                user_id=user_id,
+                company_id=company.id,
+                verification_status="approved",
+            )
+            session.add(rec_profile)
+        elif not rec_profile.company_id:
+            rec_profile.company_id = company.id
+
         # Ensure user role is recruiter
         user_query = select(User).where(User.id == user_id)
         user_res = await session.execute(user_query)
@@ -108,7 +122,33 @@ class RecruiterService:
         session: AsyncSession,
         user_id: str,
     ) -> List[Dict[str, Any]]:
-        # Query applications submitted across active jobs
+        # SECURITY FIX: Only return applications for jobs posted by THIS recruiter's company
+        # First, find the recruiter's company_id
+        rec_query = select(RecruiterProfile).where(RecruiterProfile.user_id == user_id)
+        rec_res = await session.execute(rec_query)
+        recruiter_profile = rec_res.scalars().first()
+
+        # Build the jobs filter — recruiter sees apps on their company's jobs
+        job_filter_conditions = []
+        if recruiter_profile and recruiter_profile.company_id:
+            # Approved recruiter with company — filter by company
+            job_filter_conditions.append(Job.company_id == recruiter_profile.company_id)
+        else:
+            # Fallback: find jobs where the recruiter posted them via recruiter_portal source
+            # and the company name matches their job_title context
+            # For admin users, allow all; for unattached recruiters, show empty
+            user_query = select(User).where(User.id == user_id)
+            user_res = await session.execute(user_query)
+            req_user = user_res.scalars().first()
+            if not req_user or req_user.role not in ("admin", "recruiter"):
+                return []
+            if req_user.role == "admin":
+                # Admin sees all applications
+                pass  # no filter added
+            else:
+                # Unattached recruiter — show empty until company is linked
+                return []
+
         query = (
             select(JobApplication)
             .options(
@@ -117,6 +157,10 @@ class RecruiterService:
             )
             .order_by(JobApplication.applied_at.desc())
         )
+
+        if job_filter_conditions:
+            query = query.join(Job, JobApplication.job_id == Job.id).where(*job_filter_conditions)
+
         res = await session.execute(query)
         applications = res.scalars().all()
 

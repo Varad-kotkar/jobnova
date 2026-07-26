@@ -54,8 +54,10 @@ async def get_job_by_id_or_slug(
     id_or_slug: str,
     session: AsyncSession = Depends(get_session),
 ) -> JobResponse:
+    clean_identifier = id_or_slug.lower().strip()
+
     # 1. Primary lookup by exact slug
-    stmt = select(Job).options(joinedload(Job.company)).where(Job.slug == id_or_slug.lower())
+    stmt = select(Job).options(joinedload(Job.company)).where(Job.slug == clean_identifier)
     result = await session.execute(stmt)
     job = result.scalars().first()
 
@@ -64,6 +66,23 @@ async def get_job_by_id_or_slug(
         stmt_id = select(Job).options(joinedload(Job.company)).where(Job.id == id_or_slug)
         result_id = await session.execute(stmt_id)
         job = result_id.scalars().first()
+
+    # 3. Fallback partial slug or prefix lookup for composite URLs (/jobs/{slug}-{short_id})
+    if not job:
+        from sqlalchemy import or_
+        short_id = clean_identifier.split("-")[-1]
+        stmt_partial = (
+            select(Job)
+            .options(joinedload(Job.company))
+            .where(
+                or_(
+                    Job.slug.like(f"%{clean_identifier}%"),
+                    Job.id.like(f"%{short_id}%"),
+                )
+            )
+        )
+        result_partial = await session.execute(stmt_partial)
+        job = result_partial.scalars().first()
 
     if not job:
         raise HTTPException(

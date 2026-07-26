@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, EmailStr
@@ -14,13 +14,14 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
 class RegisterRequest(BaseModel):
-    email: str
+    email: EmailStr
     password: str
     full_name: str
+    role: Optional[str] = "candidate"
 
 
 class LoginRequest(BaseModel):
-    email: str
+    email: EmailStr
     password: str
 
 
@@ -34,6 +35,7 @@ async def register(
         email=payload.email,
         password=payload.password,
         full_name=payload.full_name,
+        role=payload.role or "candidate",
     )
     user_info = await UserService.get_user_profile(session, user.id)
     return {

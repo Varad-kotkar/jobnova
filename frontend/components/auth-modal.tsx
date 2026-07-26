@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
 
 interface AuthModalProps {
@@ -14,12 +15,14 @@ export default function AuthModal({
   onClose,
   initialMode = "signin",
 }: AuthModalProps) {
+  const router = useRouter();
   const { signIn, signUp, signInWithGoogle, resetPassword, sendVerificationEmail } = useAuth();
   const [mode, setMode] = useState<"signin" | "signup" | "forgot">(initialMode);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [role, setRole] = useState<"candidate" | "recruiter">("candidate");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -37,9 +40,10 @@ export default function AuthModal({
         await signIn(email, password);
         onClose();
       } else if (mode === "signup") {
-        await signUp(email, password, fullName || "Candidate");
-        setMessage("Account created successfully! Welcome to JobNova.");
-        setTimeout(() => onClose(), 1000);
+        await signUp(email, password, fullName || "Candidate", role);
+        onClose();
+        // Redirect new users to onboarding wizard
+        router.push("/onboarding");
       } else if (mode === "forgot") {
         await resetPassword(email);
         setMessage("Password reset email sent! Please check your inbox.");
@@ -151,6 +155,25 @@ export default function AuthModal({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {mode === "signup" && (
+            <div className="grid grid-cols-2 gap-2 mb-1">
+              {(["candidate", "recruiter"] as const).map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setRole(r)}
+                  className={`rounded-xl border-2 py-2 text-xs font-bold transition ${
+                    role === r
+                      ? "border-blue-600 bg-blue-50 text-blue-700"
+                      : "border-slate-200 text-slate-600 hover:border-slate-300"
+                  }`}
+                >
+                  {r === "candidate" ? "🎓 Job Seeker" : "💼 Recruiter"}
+                </button>
+              ))}
+            </div>
+          )}
+
           {mode === "signup" && (
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">Full Name</label>
