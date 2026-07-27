@@ -9,7 +9,11 @@ from ...models.job_listing import JobListing
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_BOARDS = ["gitlab", "canonical", "github"]
+DEFAULT_BOARDS = [
+    "gitlab", "stripe", "airtable", "datadog", "figma", "notion",
+    "hashicorp", "doordash", "discord", "brex", "affirm", "gusto",
+    "rubrik", "cohere", "ramp", "elastic", "mongodb", "twosigma"
+]
 
 
 def _normalize_location(location_data: Any) -> str:

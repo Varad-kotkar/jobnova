@@ -9,7 +9,11 @@ from ...models.job_listing import JobListing
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_COMPANIES = ["vercel", "cloudflare", "postman"]
+DEFAULT_COMPANIES = [
+    "vercel", "cloudflare", "postman", "linear", "palantir",
+    "scale", "sentry", "retool", "replit", "supabase", "docker",
+    "dbtlabs", "roblox", "openai", "grafana"
+]
 
 
 class Plugin(BasePlugin):
