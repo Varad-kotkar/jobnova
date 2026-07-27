@@ -47,10 +47,14 @@ class ResumeParser:
     def extract_contact_info(text: str) -> Dict[str, Any]:
         email_match = re.search(r"[\w\.-]+@[\w\.-]+\.\w+", text)
         phone_match = re.search(r"\+?\d[\d\s\-\(\)]{8,}\d", text)
+        github_match = re.search(r"(https?://)?(www\.)?github\.com/[\w\-]+", text, re.IGNORECASE)
+        linkedin_match = re.search(r"(https?://)?(www\.)?linkedin\.com/in/[\w\-]+", text, re.IGNORECASE)
 
         return {
             "email": email_match.group(0) if email_match else None,
             "phone": phone_match.group(0) if phone_match else None,
+            "github": github_match.group(0) if github_match else None,
+            "linkedin": linkedin_match.group(0) if linkedin_match else None,
         }
 
     @staticmethod
@@ -59,15 +63,34 @@ class ResumeParser:
         skills = ResumeParser.extract_skills(parsed_text)
         contact = ResumeParser.extract_contact_info(parsed_text)
 
-        # Basic degree detection
+        # Degree detection
         education = []
-        if re.search(r"\b(bachelor|master|phd|b\.s|m\.s|degree|computer science)\b", parsed_text, re.IGNORECASE):
-            education.append({"degree": "Computer Science / STEM Degree", "field": "Software Engineering"})
+        if re.search(r"\b(bachelor|b\.tech|b\.s|m\.s|master|phd|degree|computer science|engineering)\b", parsed_text, re.IGNORECASE):
+            education.append({"degree": "Bachelor of Technology / B.S. CS", "institution": "STEM University", "field": "Computer Science"})
+
+        # Experience years estimation
+        exp_years = 1
+        year_matches = re.findall(r"\b(19\d\d|20\d\d)\b", parsed_text)
+        if len(year_matches) >= 2:
+            years = sorted([int(y) for y in year_matches if 1990 <= int(y) <= 2026])
+            if len(years) >= 2:
+                exp_years = max(1, min(30, years[-1] - years[0]))
+
+        # Headline suggestion
+        headline = "Software Engineer"
+        if "full stack" in parsed_text.lower():
+            headline = "Full Stack Engineer"
+        elif "data" in parsed_text.lower() and "scientist" in parsed_text.lower():
+            headline = "Data Scientist"
+        elif "backend" in parsed_text.lower():
+            headline = "Backend Engineer"
 
         return {
             "parsed_text": parsed_text[:10000],
             "skills": skills,
             "contact_info": contact,
             "education": education,
-            "experience": [{"role": "Software Developer", "summary": "Extracted experience from resume text"}],
+            "experience_years": exp_years,
+            "suggested_headline": headline,
+            "experience": [{"role": headline, "summary": "Extracted experience from resume text"}],
         }

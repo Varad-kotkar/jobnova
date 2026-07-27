@@ -25,8 +25,12 @@ async def _run_scheduled_ingestion() -> None:
         orchestrator = PluginOrchestrator()
         await orchestrator.initialize()
         await orchestrator.run()
+
+        from .services.ingestion import purge_expired_jobs
+        await purge_expired_jobs(max_age_days=3)
     except Exception as exc:
-        logger.exception("Scheduled ingestion failed", extra={"error": str(exc)})
+        logger.exception("Scheduled ingestion or job purge failed", extra={"error": str(exc)})
+
 
 
 import os
@@ -170,7 +174,7 @@ def create_application() -> FastAPI:
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["X-XSS-Protection"] = "1; mode=block"
-        response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';"
+        response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; connect-src 'self' https://www.google-analytics.com; style-src 'self' 'unsafe-inline';"
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
 
         return response

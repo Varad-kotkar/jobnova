@@ -13,6 +13,8 @@ from .resume import Resume
 from .notification import Notification
 from .saved_job import SavedJob
 from .recruiter import RecruiterProfile
+from .saved_search import SavedSearch
+from .audit_log import AuditLog
 
 __all__ = [
     "Base",
@@ -30,4 +32,6 @@ __all__ = [
     "Notification",
     "SavedJob",
     "RecruiterProfile",
+    "SavedSearch",
+    "AuditLog",
 ]

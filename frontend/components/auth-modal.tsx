@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { useAuth } from "@/context/auth-context";
+import { LOGO, LOGO_ALT } from "@/lib/logo";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -85,9 +87,13 @@ export default function AuthModal({
       <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 sm:p-8 shadow-popover space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 font-black text-white text-xs">
-              JN
-            </div>
+            <Image
+              src={LOGO.lettermark}
+              alt={LOGO_ALT.lettermark}
+              width={32}
+              height={32}
+              className="h-8 w-8 rounded-lg object-contain"
+            />
             <div>
               <h2 className="text-base font-bold text-gray-900">
                 {mode === "signin" && "Sign In to JobNova"}

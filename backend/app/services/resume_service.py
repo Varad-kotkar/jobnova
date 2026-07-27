@@ -80,6 +80,23 @@ class ResumeService:
             prof.skills = combined_skills
             prof.resume_url = f"/uploads/resumes/{safe_file_name}"
 
+            contact = parsed_data.get("contact_info", {})
+            if contact.get("phone") and not prof.phone:
+                prof.phone = contact["phone"]
+            if contact.get("github") and not prof.github_url:
+                prof.github_url = contact["github"]
+            if contact.get("linkedin") and not prof.linkedin_url:
+                prof.linkedin_url = contact["linkedin"]
+            if parsed_data.get("education") and not prof.education:
+                prof.education = parsed_data["education"]
+            if parsed_data.get("experience_years") and prof.experience_years is None:
+                prof.experience_years = parsed_data["experience_years"]
+            if parsed_data.get("suggested_headline") and not prof.headline:
+                prof.headline = parsed_data["suggested_headline"]
+
+            from ..services.user_service import _calculate_completion
+            prof.completion_percentage = _calculate_completion(prof)
+
         await session.commit()
 
         from ..core.cache import CacheManager
@@ -94,6 +111,14 @@ class ResumeService:
             "version": new_resume.version,
             "extracted_skills": new_resume.extracted_skills,
             "contact_info": new_resume.contact_info,
+            "education": new_resume.extracted_education,
+            "parsed_fields": {
+                "headline": prof.headline if prof else None,
+                "phone": prof.phone if prof else None,
+                "skills": prof.skills if prof else [],
+                "github_url": prof.github_url if prof else None,
+                "linkedin_url": prof.linkedin_url if prof else None,
+            },
             "created_at": new_resume.created_at.isoformat() if new_resume.created_at else None,
         }
 

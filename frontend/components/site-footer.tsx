@@ -1,4 +1,6 @@
 import Link from "next/link";
+import Image from "next/image";
+import { LOGO, LOGO_ALT } from "@/lib/logo";
 
 export default function SiteFooter() {
   return (
@@ -7,12 +9,13 @@ export default function SiteFooter() {
         <div className="grid gap-8 sm:grid-cols-4">
           <div className="space-y-3">
             <Link href="/" className="flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600 font-black text-white text-xs">
-                JN
-              </div>
-              <span className="text-base font-bold text-gray-900">
-                Job<span className="text-blue-600">Nova</span>
-              </span>
+              <Image
+                src={LOGO.primary}
+                alt={LOGO_ALT.primary}
+                width={130}
+                height={32}
+                className="h-8 w-auto object-contain"
+              />
             </Link>
             <p className="text-gray-500 leading-relaxed">
               Modern candidate intelligence and employer recruitment platform powered by FastAPI, Next.js, PostgreSQL, and AI.

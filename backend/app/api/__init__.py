@@ -18,6 +18,7 @@ from ..routers.notifications import router as notifications_router
 from ..routers.recruiter import router as recruiter_router
 from ..routers.resumes import router as resumes_router
 from ..routers.saved_jobs import router as saved_jobs_router
+from ..routers.saved_searches import router as saved_searches_router
 from ..routers.stats import router as stats_router
 from ..routers.users import router as users_router
 
@@ -35,6 +36,7 @@ ALL_ROUTERS = [
     companies_router,
     categories_router,
     saved_jobs_router,
+    saved_searches_router,
     applications_router,
     ai_match_router,
     cover_letter_router,

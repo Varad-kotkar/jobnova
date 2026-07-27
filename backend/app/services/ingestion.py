@@ -214,3 +214,29 @@ async def _get_or_create_company(session: AsyncSession, name: str) -> Company:
         await session.flush()
         logger.info("Created company record", extra={"company": clean_name, "slug": company_slug})
     return company
+
+
+async def purge_expired_jobs(session: Optional[AsyncSession] = None, max_age_days: int = 3) -> int:
+    """Deactivates active job listings that are older than max_age_days."""
+    from datetime import datetime, timezone, timedelta
+    cutoff_date = datetime.now(timezone.utc) - timedelta(days=max_age_days)
+
+    async def _purge(sess: AsyncSession) -> int:
+        stmt = select(Job).where(Job.is_active == True, Job.published_at < cutoff_date)
+        result = await sess.execute(stmt)
+        expired_jobs = result.scalars().all()
+        deactivated_count = 0
+        for job in expired_jobs:
+            job.is_active = False
+            deactivated_count += 1
+        if deactivated_count > 0:
+            await sess.commit()
+            logger.info("Purged/Deactivated %d jobs older than %d days.", deactivated_count, max_age_days)
+        return deactivated_count
+
+    if session is None:
+        sessionmaker = get_async_sessionmaker()
+        async with sessionmaker() as session:
+            return await _purge(session)
+    return await _purge(session)
+

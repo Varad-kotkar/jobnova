@@ -8,6 +8,7 @@ from sqlalchemy.orm import selectinload
 
 from ..core.rbac import require_roles
 from ..database.session import get_session
+from ..models.audit_log import AuditLog
 from ..models.company import Company
 from ..models.job import Job
 from ..models.job_application import JobApplication
@@ -20,6 +21,16 @@ router = APIRouter(prefix="/api/admin", tags=["admin"])
 class UpdateRecruiterStatusPayload(BaseModel):
     status: str  # pending, approved, rejected, suspended
     reason: Optional[str] = ""
+
+
+class UpdateUserStatusPayload(BaseModel):
+    is_active: Optional[bool] = None
+    role: Optional[str] = None
+
+
+class UpdateJobStatusPayload(BaseModel):
+    is_active: Optional[bool] = None
+    featured: Optional[bool] = None
 
 
 @router.get("/recruiters", status_code=status.HTTP_200_OK)
@@ -87,6 +98,16 @@ async def update_recruiter_status(
         )
 
     profile.verification_status = new_status
+
+    # Record Audit Log
+    log_entry = AuditLog(
+        admin_id=current_user.id,
+        action="recruiter.update_status",
+        target_type="recruiter",
+        target_id=recruiter_id,
+        details={"status": new_status, "reason": payload.reason},
+    )
+    session.add(log_entry)
     await session.commit()
 
     return {
@@ -97,6 +118,70 @@ async def update_recruiter_status(
             "message": f"Recruiter status updated to '{new_status}' successfully",
         },
     }
+
+
+@router.patch("/users/{user_id}/status", status_code=status.HTTP_200_OK)
+async def update_user_status(
+    user_id: str,
+    payload: UpdateUserStatusPayload,
+    current_user: User = Depends(require_roles("admin")),
+    session: AsyncSession = Depends(get_session),
+) -> Dict[str, Any]:
+    stmt = select(User).where(User.id == user_id)
+    res = await session.execute(stmt)
+    target_user = res.scalars().first()
+
+    if not target_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    if payload.is_active is not None:
+        target_user.is_active = payload.is_active
+    if payload.role in {"candidate", "recruiter", "admin"}:
+        target_user.role = payload.role
+
+    log_entry = AuditLog(
+        admin_id=current_user.id,
+        action="user.update_status",
+        target_type="user",
+        target_id=user_id,
+        details={"is_active": target_user.is_active, "role": target_user.role},
+    )
+    session.add(log_entry)
+    await session.commit()
+
+    return {"success": True, "message": f"User {user_id} updated successfully"}
+
+
+@router.patch("/jobs/{job_id}/status", status_code=status.HTTP_200_OK)
+async def update_job_status(
+    job_id: str,
+    payload: UpdateJobStatusPayload,
+    current_user: User = Depends(require_roles("admin")),
+    session: AsyncSession = Depends(get_session),
+) -> Dict[str, Any]:
+    stmt = select(Job).where(Job.id == job_id)
+    res = await session.execute(stmt)
+    job = res.scalars().first()
+
+    if not job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+
+    if payload.is_active is not None:
+        job.is_active = payload.is_active
+    if payload.featured is not None:
+        job.featured = payload.featured
+
+    log_entry = AuditLog(
+        admin_id=current_user.id,
+        action="job.update_status",
+        target_type="job",
+        target_id=job_id,
+        details={"is_active": job.is_active, "featured": job.featured},
+    )
+    session.add(log_entry)
+    await session.commit()
+
+    return {"success": True, "message": f"Job {job_id} updated successfully"}
 
 
 @router.get("/metrics", status_code=status.HTTP_200_OK)
@@ -168,6 +253,14 @@ async def delete_job_admin(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
 
     await session.delete(job)
+
+    log_entry = AuditLog(
+        admin_id=current_user.id,
+        action="job.delete",
+        target_type="job",
+        target_id=job_id,
+        details={"title": job.title},
+    )
+    session.add(log_entry)
     await session.commit()
     return {"success": True, "message": f"Job {job_id} deleted successfully by admin."}
-

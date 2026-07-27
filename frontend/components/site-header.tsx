@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
 import AuthModal from "@/components/auth-modal";
 import { getApiUrl } from "@/lib/api";
 import { getSavedJobs } from "@/lib/storage";
+import { LOGO, LOGO_ALT } from "@/lib/logo";
 
 interface NotificationItem {
   id: string;
@@ -93,14 +95,14 @@ export default function SiteHeader() {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-6">
           {/* Logo Mark */}
           <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white font-black text-sm shadow-subtle group-hover:bg-blue-700 transition">
-              <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
-                <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
-              </svg>
-            </div>
-            <span className="text-xl font-bold tracking-tight text-gray-900">
-              Job<span className="text-blue-600">Nova</span>
-            </span>
+            <Image
+              src={LOGO.light}
+              alt={LOGO_ALT.light}
+              width={140}
+              height={36}
+              className="h-9 w-auto object-contain"
+              priority
+            />
           </Link>
 
           {/* Desktop Nav Links */}

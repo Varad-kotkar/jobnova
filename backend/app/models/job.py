@@ -22,6 +22,8 @@ class Job(Base):
     slug = Column(String(1024), nullable=False, index=True)
     skills = Column(JSON, nullable=False, default=list)
     remote = Column(Boolean, nullable=False, default=False, index=True)
+    is_active = Column(Boolean, nullable=False, default=True, index=True)
+    featured = Column(Boolean, nullable=False, default=False)
     published_at = Column(DateTime(timezone=True), nullable=False, index=True)
     created_at = Column(DateTime(timezone=True), server_default=sa.func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now(), nullable=False)
