@@ -8,9 +8,8 @@ from typing import Any, Dict, Optional
 import httpx
 import jwt
 
-from .security import decode_access_token
-
 logger = logging.getLogger("backend.app.firebase")
+
 
 GOOGLE_CERTS_URL = "https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com"
 _certs_cache: Dict[str, str] = {}
@@ -77,4 +76,6 @@ async def verify_firebase_id_token(token: str) -> Optional[Dict[str, Any]]:
         logger.debug("Firebase RS256 token verification skipped or failed: %s", exc)
 
     # Fallback to local HMAC JWT token decoding for unit tests and local dev
+    from .security import decode_access_token
     return decode_access_token(token)
+

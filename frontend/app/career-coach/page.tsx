@@ -98,6 +98,8 @@ export default function CareerCoachPage() {
     }
   }, [user, token]);
 
+  const isProfileIncomplete = user && (!user.profile || (user.profile.completion_percentage || 0) < 50 || !user.profile.onboarding_completed);
+
   return (
     <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 space-y-8 bg-white">
       {/* Top Header Bar */}
@@ -121,6 +123,27 @@ export default function CareerCoachPage() {
           </button>
         )}
       </div>
+
+      {isProfileIncomplete && (
+        <div className="rounded-3xl border border-amber-200 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-100 p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">⚠️</span>
+              <h3 className="text-base font-bold text-amber-900">Complete Your Profile First to Unlock AI Coaching</h3>
+            </div>
+            <p className="text-xs text-amber-800 leading-relaxed max-w-xl">
+              Your candidate profile is currently incomplete ({user?.profile?.completion_percentage || 15}% completed). To receive accurate AI career roadmaps, skill gap analysis, and target salary projections, please complete your profile details first.
+            </p>
+          </div>
+          <Link
+            href="/onboarding"
+            className="shrink-0 rounded-2xl bg-amber-900 px-5 py-3 text-xs font-extrabold text-white shadow-md hover:bg-amber-950 transition"
+          >
+            Complete Profile Now →
+          </Link>
+        </div>
+      )}
+
 
       {loading ? (
         <div className="py-12 text-center text-xs font-semibold text-gray-500">

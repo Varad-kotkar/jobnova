@@ -22,7 +22,7 @@ SEED_JOBS = [
         apply_url="https://stripe.com/jobs/search?q=senior+frontend+engineer",
         skills=["React", "TypeScript", "CSS", "GraphQL", "Node.js"],
         remote=True,
-        published_at=datetime.now(timezone.utc) - timedelta(days=1),
+        published_at=datetime.now(timezone.utc) - timedelta(hours=2),
     ),
     JobListing(
         company="Vercel",
@@ -32,7 +32,7 @@ SEED_JOBS = [
         apply_url="https://vercel.com/careers?q=full+stack+engineer",
         skills=["Next.js", "React", "TypeScript", "Go", "Postgres"],
         remote=True,
-        published_at=datetime.now(timezone.utc) - timedelta(days=2),
+        published_at=datetime.now(timezone.utc) - timedelta(hours=4),
     ),
     JobListing(
         company="Linear",
@@ -42,7 +42,7 @@ SEED_JOBS = [
         apply_url="https://linear.app/careers?q=product+engineer",
         skills=["React", "TypeScript", "PostgreSQL", "Redis", "Figma"],
         remote=True,
-        published_at=datetime.now(timezone.utc) - timedelta(days=3),
+        published_at=datetime.now(timezone.utc) - timedelta(hours=6),
     ),
     JobListing(
         company="Figma",
@@ -52,7 +52,7 @@ SEED_JOBS = [
         apply_url="https://figma.com/careers?q=backend+engineer+collaboration",
         skills=["Rust", "C++", "TypeScript", "WebSockets", "Distributed Systems"],
         remote=False,
-        published_at=datetime.now(timezone.utc) - timedelta(days=4),
+        published_at=datetime.now(timezone.utc) - timedelta(hours=8),
     ),
     JobListing(
         company="Notion",
@@ -62,7 +62,7 @@ SEED_JOBS = [
         apply_url="https://notion.so/careers?q=senior+software+engineer+platform",
         skills=["Python", "Java", "PostgreSQL", "Elasticsearch", "Kubernetes"],
         remote=True,
-        published_at=datetime.now(timezone.utc) - timedelta(days=5),
+        published_at=datetime.now(timezone.utc) - timedelta(hours=10),
     ),
     JobListing(
         company="Supabase",
@@ -72,7 +72,7 @@ SEED_JOBS = [
         apply_url="https://supabase.com/careers?q=developer+advocate",
         skills=["PostgreSQL", "TypeScript", "Technical Writing", "React", "APIs"],
         remote=True,
-        published_at=datetime.now(timezone.utc) - timedelta(days=6),
+        published_at=datetime.now(timezone.utc) - timedelta(hours=12),
     ),
     JobListing(
         company="Datadog",
@@ -82,7 +82,7 @@ SEED_JOBS = [
         apply_url="https://datadoghq.com/careers?q=software+engineer+observability",
         skills=["Go", "Python", "Kafka", "Elasticsearch", "Kubernetes"],
         remote=False,
-        published_at=datetime.now(timezone.utc) - timedelta(days=7),
+        published_at=datetime.now(timezone.utc) - timedelta(hours=14),
     ),
     JobListing(
         company="Cloudflare",
@@ -92,7 +92,7 @@ SEED_JOBS = [
         apply_url="https://cloudflare.com/careers?q=systems+engineer+workers",
         skills=["Rust", "C++", "V8", "WebAssembly", "Linux"],
         remote=True,
-        published_at=datetime.now(timezone.utc) - timedelta(days=8),
+        published_at=datetime.now(timezone.utc) - timedelta(hours=16),
     ),
     JobListing(
         company="Shopify",
@@ -102,7 +102,7 @@ SEED_JOBS = [
         apply_url="https://shopify.com/careers?q=senior+data+engineer",
         skills=["Python", "Spark", "SQL", "Airflow", "dbt"],
         remote=True,
-        published_at=datetime.now(timezone.utc) - timedelta(days=9),
+        published_at=datetime.now(timezone.utc) - timedelta(hours=18),
     ),
     JobListing(
         company="GitHub",
@@ -112,7 +112,7 @@ SEED_JOBS = [
         apply_url="https://github.com/about/careers?q=staff+engineer+copilot",
         skills=["Python", "TypeScript", "Machine Learning", "LLMs", "VS Code"],
         remote=True,
-        published_at=datetime.now(timezone.utc) - timedelta(days=10),
+        published_at=datetime.now(timezone.utc) - timedelta(hours=20),
     ),
     JobListing(
         company="Anthropic",
@@ -122,7 +122,7 @@ SEED_JOBS = [
         apply_url="https://anthropic.com/careers?q=research+engineer",
         skills=["Python", "PyTorch", "JAX", "Machine Learning", "Distributed Computing"],
         remote=False,
-        published_at=datetime.now(timezone.utc) - timedelta(days=11),
+        published_at=datetime.now(timezone.utc) - timedelta(hours=22),
     ),
     JobListing(
         company="Tailwind Labs",
@@ -132,7 +132,7 @@ SEED_JOBS = [
         apply_url="https://tailwindcss.com/careers?q=ui+engineer",
         skills=["CSS", "React", "TypeScript", "Design Systems", "Accessibility"],
         remote=True,
-        published_at=datetime.now(timezone.utc) - timedelta(days=12),
+        published_at=datetime.now(timezone.utc) - timedelta(hours=24),
     ),
     JobListing(
         company="PlanetScale",
@@ -142,7 +142,7 @@ SEED_JOBS = [
         apply_url="https://planetscale.com/careers?q=database+engineer",
         skills=["Go", "MySQL", "Vitess", "Kubernetes", "Terraform"],
         remote=True,
-        published_at=datetime.now(timezone.utc) - timedelta(days=13),
+        published_at=datetime.now(timezone.utc) - timedelta(hours=26),
     ),
     JobListing(
         company="Resend",
@@ -152,7 +152,7 @@ SEED_JOBS = [
         apply_url="https://resend.com/careers?q=founding+engineer",
         skills=["React", "TypeScript", "Node.js", "AWS", "PostgreSQL"],
         remote=True,
-        published_at=datetime.now(timezone.utc) - timedelta(days=14),
+        published_at=datetime.now(timezone.utc) - timedelta(hours=28),
     ),
     JobListing(
         company="Netflix",
@@ -162,8 +162,9 @@ SEED_JOBS = [
         apply_url="https://netflix.com/jobs?q=senior+software+engineer+studio",
         skills=["Java", "React", "GraphQL", "AWS", "Microservices"],
         remote=False,
-        published_at=datetime.now(timezone.utc) - timedelta(days=15),
+        published_at=datetime.now(timezone.utc) - timedelta(hours=30),
     ),
+
 ]
 
 

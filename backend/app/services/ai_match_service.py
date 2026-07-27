@@ -97,15 +97,17 @@ class AIMatchService:
 
         # Format Reasoning Bullet Points
         reasoning = []
-        if len(matched_skills_raw) > 0:
-            reasoning.append(f"Matches {len(matched_skills_raw)} required tech skills: {', '.join([s.title() for s in matched_skills_raw[:4]])}")
-        if job.remote:
-            reasoning.append("Job matches candidate remote work preference")
+        for s in matched_skills_raw[:4]:
+            reasoning.append(f"✓ {s.title()}")
+        if job.remote and user.profile and user.profile.remote_preference:
+            reasoning.append("✓ Remote matches preference")
         if role_score >= 15:
-            reasoning.append("Job title aligns with candidate preferred engineering roles")
+            reasoning.append("✓ Target role alignment")
+        for s in missing_skills_raw[:3]:
+            reasoning.append(f"✗ {s.title()} missing")
 
         if not reasoning:
-            reasoning.append("Partial skill and domain alignment detected")
+            reasoning.append("✓ Partial skill and domain alignment")
 
         # Format Display Capitalized Skills
         display_matched = [s.title() for s in matched_skills_raw]
@@ -131,8 +133,10 @@ class AIMatchService:
         user_id: str,
         limit: int = 10,
     ) -> List[Dict[str, Any]]:
-        # Query active jobs
-        query = select(Job).options(joinedload(Job.company)).order_by(Job.published_at.desc()).limit(30)
+        # Query active jobs published within last 3 days
+        from datetime import datetime, timezone, timedelta
+        three_days_ago = datetime.now(timezone.utc) - timedelta(days=3)
+        query = select(Job).options(joinedload(Job.company)).where(Job.published_at >= three_days_ago).order_by(Job.published_at.desc()).limit(30)
         res = await session.execute(query)
         jobs = res.scalars().all()
 
@@ -151,9 +155,11 @@ class AIMatchService:
                     "recommendation": match_res["recommendation"],
                     "matched_skills": match_res["matched_skills"],
                     "missing_skills": match_res["missing_skills"],
+                    "reasoning": match_res["reasoning"],
                 }
             )
 
         # Sort by match score descending
         recommended.sort(key=lambda x: x["match_score"], reverse=True)
         return recommended[:limit]
+

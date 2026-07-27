@@ -29,6 +29,41 @@ async def _run_scheduled_ingestion() -> None:
         logger.exception("Scheduled ingestion failed", extra={"error": str(exc)})
 
 
+import os
+from .models.user import User
+from .core.security import hash_password
+
+
+async def _ensure_permanent_admin() -> None:
+    try:
+        sessionmaker = get_async_sessionmaker()
+        async with sessionmaker() as session:
+            admin_email = "kotkarvarad12@gmail.com"
+            stmt = select(User).where(User.email == admin_email)
+            res = await session.execute(stmt)
+            admin_user = res.scalars().first()
+
+            if admin_user:
+                if admin_user.role != "admin":
+                    admin_user.role = "admin"
+                    await session.commit()
+                    logger.info("Upgraded permanent admin role for %s", admin_email)
+            else:
+                initial_pass = os.getenv("ADMIN_PASSWORD", "AdminJobNova2026!")
+                new_admin = User(
+                    email=admin_email,
+                    hashed_password=hash_password(initial_pass),
+                    full_name="System Administrator",
+                    role="admin",
+                    is_active=True,
+                )
+                session.add(new_admin)
+                await session.commit()
+                logger.info("Provisioned permanent admin account %s", admin_email)
+    except Exception as exc:
+        logger.exception("Permanent admin provisioning failed: %s", exc)
+
+
 async def _initial_check_and_scheduler() -> None:
     try:
         sessionmaker = get_async_sessionmaker()
@@ -44,11 +79,11 @@ async def _initial_check_and_scheduler() -> None:
     except Exception as exc:
         logger.exception("Initial ingestion check failed", extra={"error": str(exc)})
 
-    # Periodic background loop running every 6 hours
+    # Periodic background loop running every 1 hour (3600 seconds)
     while True:
         try:
-            await asyncio.sleep(6 * 3600)
-            logger.info("Triggering 6-hour periodic job ingestion...")
+            await asyncio.sleep(3600)
+            logger.info("Triggering 1-hour periodic job ingestion...")
             await _run_scheduled_ingestion()
         except asyncio.CancelledError:
             logger.info("Background ingestion scheduler stopped.")
@@ -61,6 +96,8 @@ async def _initial_check_and_scheduler() -> None:
 async def lifespan(application: FastAPI):
     logger.info("Application startup", extra={"event": "startup", "environment": settings.environment})
     await connect_to_database(database_config.database_url)
+
+    await _ensure_permanent_admin()
     
     ingestion_task = asyncio.create_task(_initial_check_and_scheduler())
     yield
@@ -72,6 +109,7 @@ async def lifespan(application: FastAPI):
     except asyncio.CancelledError:
         pass
     await disconnect_from_database()
+
 
 
 def create_application() -> FastAPI:

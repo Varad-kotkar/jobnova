@@ -148,8 +148,25 @@ async def _process_listings(
                 stats.jobs.append(new_job)
                 logger.info("Inserted new job record", extra={"job_id": new_job.id, "apply_url": apply_url})
 
+                # Asynchronously post new job listing to Telegram Channel
+                try:
+                    import asyncio
+                    from .telegram_service import TelegramService
+                    asyncio.create_task(TelegramService.post_job_to_channel({
+                        "id": new_job.id,
+                        "title": new_job.title,
+                        "company": company.name if company else "Company",
+                        "location": new_job.location,
+                        "remote": new_job.remote,
+                        "slug": new_job.slug,
+                        "apply_url": new_job.apply_url,
+                    }))
+                except Exception as tg_err:
+                    logger.warning("Telegram async broadcast error: %s", tg_err)
+
             from .category_classifier import CategoryClassifier
             await CategoryClassifier.classify_and_assign(session, target_job)
+
 
         except Exception as exc:
             err_msg = f"Failed to ingest listing '{getattr(listing, 'title', 'Unknown')}': {exc}"

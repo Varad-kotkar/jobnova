@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/auth-context";
 import { getApiUrl } from "@/lib/api";
-import { sanitizeHtml } from "@/lib/sanitize";
+import { sanitizeHtml, decodeHtmlEntities } from "@/lib/sanitize";
 import { isJobSaved, toggleSaveJob, recordJobApplication } from "@/lib/storage";
+
 
 interface JobDetailProps {
   job: {
@@ -250,8 +251,9 @@ export default function JobDetail({ job }: JobDetailProps) {
     }
   };
 
-  const isHtml = /<[a-z][\s\S]*>/i.test(job.description);
-  const cleanDescription = isHtml ? sanitizeHtml(job.description) : null;
+  const decodedDesc = decodeHtmlEntities(job.description || "");
+  const isHtml = /<[a-z][\s\S]*>/i.test(decodedDesc);
+  const cleanDescription = isHtml ? sanitizeHtml(decodedDesc) : null;
   const companyInitial = job.company ? job.company.charAt(0).toUpperCase() : "C";
 
   return (
@@ -301,10 +303,11 @@ export default function JobDetail({ job }: JobDetailProps) {
               />
             ) : (
               <p className="whitespace-pre-line text-base leading-relaxed text-slate-700">
-                {job.description}
+                {decodedDesc}
               </p>
             )}
           </div>
+
 
           {job.skills && job.skills.length > 0 && (
             <div className="mt-8 border-t border-slate-100 pt-6">

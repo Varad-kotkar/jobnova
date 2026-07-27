@@ -124,3 +124,50 @@ async def get_system_metrics(
             "pending_recruiter_reviews": pending_recruiters,
         },
     }
+
+
+@router.get("/telegram/settings", status_code=status.HTTP_200_OK)
+async def get_telegram_settings(
+    current_user: User = Depends(require_roles("admin")),
+) -> Dict[str, Any]:
+    from ..services.telegram_service import TelegramService
+    token, channel_id = TelegramService.get_credentials()
+    logs = TelegramService.get_logs()
+    return {
+        "success": True,
+        "data": {
+            "is_configured": bool(token and channel_id),
+            "channel_id": channel_id or "Not configured",
+            "bot_configured": bool(token),
+            "recent_logs": logs,
+        },
+    }
+
+
+@router.post("/telegram/test", status_code=status.HTTP_200_OK)
+async def trigger_telegram_test(
+    channel_override: Optional[str] = Query(None),
+    current_user: User = Depends(require_roles("admin")),
+) -> Dict[str, Any]:
+    from ..services.telegram_service import TelegramService
+    result = await TelegramService.send_test_message(channel_override)
+    return {"success": True, "result": result}
+
+
+@router.delete("/jobs/{job_id}", status_code=status.HTTP_200_OK)
+async def delete_job_admin(
+    job_id: str,
+    current_user: User = Depends(require_roles("admin")),
+    session: AsyncSession = Depends(get_session),
+) -> Dict[str, Any]:
+    stmt = select(Job).where(Job.id == job_id)
+    res = await session.execute(stmt)
+    job = res.scalars().first()
+
+    if not job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+
+    await session.delete(job)
+    await session.commit()
+    return {"success": True, "message": f"Job {job_id} deleted successfully by admin."}
+

@@ -9,6 +9,17 @@ beautifulsoup4
 lxml
 pydantic[email]
 pydantic-settings
+fastapi
+uvicorn[standard]
+sqlalchemy
+alembic
+asyncpg
+aiosqlite
+httpx
+beautifulsoup4
+lxml
+pydantic[email]
+pydantic-settings
 python-dotenv
 loguru
 tenacity
@@ -17,3 +28,5 @@ orjson
 aiofiles
 greenlet
 python-multipart
+PyJWT
+cryptography

@@ -57,7 +57,13 @@ async def query_jobs(
     if remote is not None:
         filters.append(Job.remote.is_(remote))
 
+    # 3-Day Job Expiration Filter: Only show jobs published within last 3 days
+    from datetime import datetime, timezone, timedelta
+    three_days_ago = datetime.now(timezone.utc) - timedelta(days=3)
+    filters.append(Job.published_at >= three_days_ago)
+
     query = select(Job).options(joinedload(Job.company))
+
 
     # Join company if needed for filters or keyword match
     needs_company_join = company is not None or clean_keyword is not None

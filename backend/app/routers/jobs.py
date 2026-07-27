@@ -61,28 +61,28 @@ async def get_job_by_id_or_slug(
     result = await session.execute(stmt)
     job = result.scalars().first()
 
-    # 2. Fallback lookup by exact id if slug lookup missed
+    # 2. Fallback lookup by exact id
     if not job:
-        stmt_id = select(Job).options(joinedload(Job.company)).where(Job.id == id_or_slug)
+        from sqlalchemy import or_
+        stmt_id = select(Job).options(joinedload(Job.company)).where(
+            or_(Job.id == id_or_slug, Job.id == clean_identifier)
+        )
         result_id = await session.execute(stmt_id)
         job = result_id.scalars().first()
 
-    # 3. Fallback partial slug or prefix lookup for composite URLs (/jobs/{slug}-{short_id})
-    if not job:
-        from sqlalchemy import or_
-        short_id = clean_identifier.split("-")[-1]
-        stmt_partial = (
-            select(Job)
-            .options(joinedload(Job.company))
-            .where(
-                or_(
-                    Job.slug.like(f"%{clean_identifier}%"),
-                    Job.id.like(f"%{short_id}%"),
-                )
+    # 3. Fallback composite lookup for URLs formatted as /jobs/{slug}-{uuid}
+    if not job and "-" in clean_identifier:
+        parts = clean_identifier.split("-")
+        potential_uuid = parts[-1]
+        if len(potential_uuid) >= 8:
+            stmt_composite = (
+                select(Job)
+                .options(joinedload(Job.company))
+                .where(Job.id.startswith(potential_uuid))
             )
-        )
-        result_partial = await session.execute(stmt_partial)
-        job = result_partial.scalars().first()
+            result_comp = await session.execute(stmt_composite)
+            job = result_comp.scalars().first()
+
 
     if not job:
         raise HTTPException(

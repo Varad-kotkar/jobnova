@@ -1,7 +1,9 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import JobFeed from "@/components/job-feed";
 import SearchControls from "@/components/search-controls";
+
 
 interface HomePageProps {
   searchParams: Promise<Record<string, string | undefined>>;
@@ -215,6 +217,50 @@ export default async function HomePage(props: HomePageProps) {
           <JobFeed searchParams={searchParams} />
         </Suspense>
       </section>
+
+      {/* Career Motivation Meme Spotlight */}
+      <section className="mx-auto max-w-7xl px-4 sm:px-6">
+        <div className="grid items-center gap-10 rounded-3xl bg-gradient-to-r from-amber-50 via-orange-50 to-yellow-100 p-8 shadow-subtle border border-orange-200/80 md:grid-cols-2">
+          <div className="space-y-4">
+            <span className="inline-block rounded-full bg-orange-500 px-4 py-1 text-xs font-bold text-white shadow-sm">
+              😂 Career Motivation
+            </span>
+
+            <h2 className="text-3xl sm:text-4xl font-black text-gray-900 tracking-tight leading-tight">
+              Career First... Everything Else Later! 🚀
+            </h2>
+
+            <p className="text-sm text-gray-700 leading-relaxed font-medium">
+              Every successful engineering career starts with one focused decision.
+              Learn continuous skills, apply strategically, and accelerate your growth with JobNova.
+            </p>
+
+            <p className="text-xs text-orange-950/70 italic font-semibold">
+              "A little humor, but a serious reminder—your career deserves your undivided attention."
+            </p>
+
+            <div className="pt-2">
+              <Link
+                href="/jobs"
+                className="inline-block rounded-xl bg-blue-600 px-6 py-3 text-xs font-bold text-white shadow-md hover:bg-blue-700 transition"
+              >
+                Explore Active Roles →
+              </Link>
+            </div>
+          </div>
+
+          <div className="flex justify-center">
+            <Image
+              src="/images/career-meme.png"
+              alt="Career Motivation Meme"
+              width={450}
+              height={450}
+              className="rounded-2xl shadow-xl border border-white/60 object-cover max-h-[380px]"
+            />
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
+

@@ -108,23 +108,61 @@ async def get_current_user(
 
     token = credentials.credentials
     payload = decode_access_token(token)
-    if not payload or "sub" not in payload:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials or token expired",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    user: Optional[User] = None
 
-    user_id = payload["sub"]
-    query = select(User).where(User.id == user_id)
-    result = await session.execute(query)
-    user = result.scalars().first()
+    if payload and "sub" in payload:
+        user_id = payload["sub"]
+        query = select(User).where(User.id == user_id)
+        result = await session.execute(query)
+        user = result.scalars().first()
+
+    # Fallback to Firebase ID Token verification if local token decoding didn't match
+    if not user:
+        try:
+            from .firebase import verify_firebase_id_token
+            fb_info = await verify_firebase_id_token(token)
+            if fb_info:
+                fb_email = fb_info.get("email", "").strip().lower()
+                fb_uid = fb_info.get("uid")
+
+                if fb_email:
+                    stmt = select(User).where(User.email == fb_email)
+                    res = await session.execute(stmt)
+                    user = res.scalars().first()
+
+                if not user and fb_email:
+                    # Auto-provision user account for Firebase Google SSO
+                    from ..models.user_profile import UserProfile
+                    new_user = User(
+                        id=fb_uid if len(str(fb_uid)) <= 36 else None,
+                        email=fb_email,
+                        hashed_password=None,
+                        full_name=fb_info.get("name") or fb_email.split("@")[0],
+                        role="candidate",
+                    )
+                    session.add(new_user)
+                    await session.flush()
+
+                    new_profile = UserProfile(
+                        user_id=new_user.id,
+                        headline=None,
+                        skills=[],
+                        preferred_roles=[],
+                        completion_percentage=15,
+                        onboarding_completed=False,
+                    )
+                    session.add(new_profile)
+                    await session.commit()
+                    user = new_user
+        except Exception as exc:
+            logger.debug("Firebase token verification fallback failed: %s", exc)
 
     if not user or not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User account inactive or not found",
+            detail="Could not validate credentials or user account inactive",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
     return user
+

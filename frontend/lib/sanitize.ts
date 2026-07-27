@@ -4,11 +4,26 @@
  * Strips script tags, unsafe event handlers, inline styles, and enforces secure links.
  */
 
+export function decodeHtmlEntities(raw: string): string {
+  if (!raw) return "";
+  return raw
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, "&")
+    .replace(/&#39;/g, "'")
+    .replace(/&#x27;/g, "'")
+    .replace(/&#x2F;/g, "/")
+    .replace(/&nbsp;/g, " ");
+}
+
 export function sanitizeHtml(rawHtml: string): string {
   if (!rawHtml) return "";
 
+  const decoded = decodeHtmlEntities(rawHtml);
+
   // 1. Remove dangerous script, iframe, object, embed, style elements and their content
-  let cleaned = rawHtml.replace(/<(script|iframe|object|embed|style)[\s\S]*?<\/\1>/gi, "");
+  let cleaned = decoded.replace(/<(script|iframe|object|embed|style)[\s\S]*?<\/\1>/gi, "");
 
   // 2. Remove inline event handlers like onclick="...", onload="..."
   cleaned = cleaned.replace(/\s+on[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "");
@@ -27,3 +42,4 @@ export function sanitizeHtml(rawHtml: string): string {
 
   return cleaned;
 }
+
