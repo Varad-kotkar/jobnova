@@ -189,24 +189,63 @@ async def get_system_metrics(
     current_user: User = Depends(require_roles("admin")),
     session: AsyncSession = Depends(get_session),
 ) -> Dict[str, Any]:
+    from datetime import datetime, timezone, timedelta
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+
     users_count = (await session.execute(select(func.count(User.id)))).scalar_one()
+    active_candidates = (
+        await session.execute(
+            select(func.count(User.id)).where(User.role == "candidate", User.is_active == True)
+        )
+    ).scalar_one()
+
     jobs_count = (await session.execute(select(func.count(Job.id)))).scalar_one()
+    jobs_today = (
+        await session.execute(
+            select(func.count(Job.id)).where(Job.created_at >= today_start)
+        )
+    ).scalar_one()
+
     apps_count = (await session.execute(select(func.count(JobApplication.id)))).scalar_one()
     companies_count = (await session.execute(select(func.count(Company.id)))).scalar_one()
+
     pending_recruiters = (
         await session.execute(
             select(func.count(RecruiterProfile.id)).where(RecruiterProfile.verification_status == "pending")
         )
     ).scalar_one()
 
+    approved_recruiters = (
+        await session.execute(
+            select(func.count(RecruiterProfile.id)).where(RecruiterProfile.verification_status == "approved")
+        )
+    ).scalar_one()
+
+    rejected_recruiters = (
+        await session.execute(
+            select(func.count(RecruiterProfile.id)).where(RecruiterProfile.verification_status == "rejected")
+        )
+    ).scalar_one()
+
+    from ..services.telegram_service import TelegramService
+    telegram_logs = TelegramService.get_logs()
+    telegram_posts_today = sum(
+        1 for log in telegram_logs if log.get("success")
+    )
+
     return {
         "success": True,
         "data": {
             "total_users": users_count,
+            "active_candidates": active_candidates,
             "total_jobs": jobs_count,
+            "jobs_today": jobs_today,
             "total_applications": apps_count,
             "total_companies": companies_count,
             "pending_recruiter_reviews": pending_recruiters,
+            "approved_recruiters": approved_recruiters,
+            "rejected_recruiters": rejected_recruiters,
+            "telegram_posts_today": telegram_posts_today,
         },
     }
 

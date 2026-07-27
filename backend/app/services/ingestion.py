@@ -65,16 +65,58 @@ SPAM_KEYWORDS = [
 ]
 
 
+TECH_WHITELIST_KEYWORDS = [
+    "python", "java", "data analyst", "data scientist", "ml engineer", "ai engineer",
+    "backend", "frontend", "full stack", "fullstack", "devops", "cloud", "cybersecurity",
+    "qa", "software engineer", "data analytics", "machine learning", "software developer",
+    "data engineering", "data engineer", "ai developer", "system engineer", "site reliability"
+]
+
+NON_TECH_REJECT_KEYWORDS = [
+    "sales", "marketing", "hr", "human resources", "finance", "teacher", "nurse",
+    "driver", "civil", "mechanical", "accountant", "account executive", "customer support",
+    "business development", "recruiter", "store manager", "receptionist", "telecaller"
+]
+
+
 def _is_valid_quality_job(listing: JobListing) -> bool:
     if not listing.company or not listing.title or not listing.apply_url:
         return False
     if not listing.description or not listing.description.strip():
         return False
 
+    title_lower = listing.title.lower()
     content_text = f"{listing.title} {listing.description}".lower()
+
     for kw in SPAM_KEYWORDS:
         if kw in content_text:
             return False
+
+    # Reject non-tech roles
+    for reject_kw in NON_TECH_REJECT_KEYWORDS:
+        if reject_kw in title_lower:
+            return False
+
+    # Must match tech whitelist
+    return any(tech_kw in content_text for tech_kw in TECH_WHITELIST_KEYWORDS)
+
+
+def _meets_telegram_criteria(listing: JobListing) -> bool:
+    loc_lower = (listing.location or "").lower()
+    title_lower = (listing.title or "").lower()
+    desc_lower = (listing.description or "").lower()
+    text_combined = f"{title_lower} {desc_lower}"
+
+    # Location requirement: India (Pune, Bengaluru/Bangalore, or Remote in India)
+    location_match = any(loc in loc_lower for loc in ["pune", "bengaluru", "bangalore", "india"]) or (listing.remote and ("india" in loc_lower or "india" in text_combined))
+    if not location_match:
+        return False
+
+    # Category requirement: Python, Data Analytics, Data Science, AI, Machine Learning, Backend
+    tg_category_match = any(kw in text_combined for kw in ["python", "data analytics", "data science", "ai", "machine learning", "backend"])
+    if not tg_category_match:
+        return False
+
     return True
 
 
@@ -91,7 +133,7 @@ async def _process_listings(
     for listing in listings:
         try:
             if not _is_valid_quality_job(listing):
-                logger.info("Skipped low-quality or spam listing: %s", getattr(listing, 'title', 'Unknown'))
+                logger.info("Skipped non-tech or low-quality listing: %s", getattr(listing, 'title', 'Unknown'))
                 continue
 
             apply_url = _normalize_apply_url(listing.apply_url)
@@ -148,21 +190,22 @@ async def _process_listings(
                 stats.jobs.append(new_job)
                 logger.info("Inserted new job record", extra={"job_id": new_job.id, "apply_url": apply_url})
 
-                # Asynchronously post new job listing to Telegram Channel
-                try:
-                    import asyncio
-                    from .telegram_service import TelegramService
-                    asyncio.create_task(TelegramService.post_job_to_channel({
-                        "id": new_job.id,
-                        "title": new_job.title,
-                        "company": company.name if company else "Company",
-                        "location": new_job.location,
-                        "remote": new_job.remote,
-                        "slug": new_job.slug,
-                        "apply_url": new_job.apply_url,
-                    }))
-                except Exception as tg_err:
-                    logger.warning("Telegram async broadcast error: %s", tg_err)
+                # Check Telegram criteria before posting
+                if _meets_telegram_criteria(listing):
+                    try:
+                        import asyncio
+                        from .telegram_service import TelegramService
+                        asyncio.create_task(TelegramService.post_job_to_channel({
+                            "id": new_job.id,
+                            "title": new_job.title,
+                            "company": company.name if company else "Company",
+                            "location": new_job.location,
+                            "remote": new_job.remote,
+                            "slug": new_job.slug,
+                            "apply_url": new_job.apply_url,
+                        }))
+                    except Exception as tg_err:
+                        logger.warning("Telegram async broadcast error: %s", tg_err)
 
             from .category_classifier import CategoryClassifier
             await CategoryClassifier.classify_and_assign(session, target_job)

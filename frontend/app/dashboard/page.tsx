@@ -120,8 +120,31 @@ export default function DashboardPage() {
     );
   }
 
+  const onboardingCompleted = Boolean(user?.profile?.onboarding_completed);
+
   return (
     <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+      {/* Complete Profile Warning Banner */}
+      {!onboardingCompleted && (
+        <div className="mb-8 rounded-3xl border border-amber-200 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-100 p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">🚀</span>
+              <h2 className="text-base font-bold text-amber-900">Complete Your Profile to Unlock AI Matching & Career Roadmap</h2>
+            </div>
+            <p className="text-xs text-amber-800 leading-relaxed max-w-xl">
+              Your candidate profile is currently incomplete ({user?.profile?.completion_percentage || 15}% completed). Complete your onboarding details to unlock personalized AI job recommendations and career roadmaps.
+            </p>
+          </div>
+          <Link
+            href="/onboarding"
+            className="shrink-0 rounded-2xl bg-amber-900 px-5 py-3 text-xs font-extrabold text-white shadow-md hover:bg-amber-950 transition"
+          >
+            Complete Profile Now →
+          </Link>
+        </div>
+      )}
+
       {/* Header */}
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 pb-6">
         <div>

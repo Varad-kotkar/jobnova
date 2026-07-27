@@ -8,10 +8,15 @@ import { getApiUrl } from "@/lib/api";
 
 interface SystemMetrics {
   total_users: number;
+  active_candidates?: number;
   total_jobs: number;
+  jobs_today?: number;
   total_applications: number;
   total_companies: number;
   pending_recruiter_reviews: number;
+  approved_recruiters?: number;
+  rejected_recruiters?: number;
+  telegram_posts_today?: number;
 }
 
 interface RecruiterItem {
@@ -205,17 +210,21 @@ export default function AdminDashboardPage() {
         {/* OVERVIEW TAB */}
         {activeTab === "overview" && (
           <div className="space-y-8">
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
               {[
-                { label: "Total Users", value: metrics?.total_users ?? "—", color: "text-blue-700" },
-                { label: "Total Jobs", value: metrics?.total_jobs ?? "—", color: "text-indigo-700" },
-                { label: "Applications", value: metrics?.total_applications ?? "—", color: "text-purple-700" },
-                { label: "Companies", value: metrics?.total_companies ?? "—", color: "text-emerald-700" },
-                { label: "Pending Reviews", value: metrics?.pending_recruiter_reviews ?? "—", color: "text-amber-700" },
+                { label: "Pending Recruiters", value: metrics?.pending_recruiter_reviews ?? "—", color: "text-amber-600", desc: "Awaiting verification review" },
+                { label: "Approved Recruiters", value: metrics?.approved_recruiters ?? "—", color: "text-emerald-600", desc: "Verified employer accounts" },
+                { label: "Rejected Recruiters", value: metrics?.rejected_recruiters ?? "—", color: "text-rose-600", desc: "Declined applications" },
+                { label: "Active Candidates", value: metrics?.active_candidates ?? "—", color: "text-blue-600", desc: "Registered job seekers" },
+                { label: "Jobs Today", value: metrics?.jobs_today ?? "—", color: "text-indigo-600", desc: "Ingested in last 24 hours" },
+                { label: "Telegram Posts Today", value: metrics?.telegram_posts_today ?? "—", color: "text-sky-600", desc: "Dispatched to channel" },
+                { label: "Total Tech Jobs", value: metrics?.total_jobs ?? "—", color: "text-purple-600", desc: "Active in database" },
+                { label: "Total Applications", value: metrics?.total_applications ?? "—", color: "text-slate-900", desc: "Candidate submissions" },
               ].map((m) => (
                 <div key={m.label} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                   <p className="text-xs font-bold uppercase tracking-wider text-slate-400">{m.label}</p>
                   <p className={`mt-2 text-3xl font-extrabold ${m.color}`}>{m.value}</p>
+                  <p className="mt-1 text-[11px] font-medium text-slate-400">{m.desc}</p>
                 </div>
               ))}
             </div>

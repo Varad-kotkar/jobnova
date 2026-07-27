@@ -12,9 +12,9 @@ from app.models.source import Source
 async def test_ingest_and_duplicate_detection(async_session):
     listing = JobListing(
         company=f"Acme-{uuid.uuid4()}",
-        title="Eng",
+        title="Software Engineer",
         location="NY",
-        description="Desc",
+        description="Software Engineer with Python skills",
         apply_url="https://a.example/apply/dup",
         skills=["python"],
         remote=False,

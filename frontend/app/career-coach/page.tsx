@@ -98,10 +98,12 @@ export default function CareerCoachPage() {
     }
   }, [user, token]);
 
-  const isProfileIncomplete = user && (!user.profile || (user.profile.completion_percentage || 0) < 50 || !user.profile.onboarding_completed);
+  const isGuest = !user;
+  const isIncomplete = Boolean(user && (!user.profile || !user.profile.onboarding_completed));
+  const isUnlocked = Boolean(user && user.profile && user.profile.onboarding_completed);
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 space-y-8 bg-white">
+    <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 space-y-8 bg-white relative">
       {/* Top Header Bar */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-gray-100 pb-6">
         <div>
@@ -113,7 +115,7 @@ export default function CareerCoachPage() {
           </p>
         </div>
 
-        {!user && (
+        {isGuest && (
           <button
             type="button"
             onClick={() => setAuthModalOpen(true)}
@@ -124,33 +126,52 @@ export default function CareerCoachPage() {
         )}
       </div>
 
-      {isProfileIncomplete && (
-        <div className="rounded-3xl border border-amber-200 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-100 p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="text-xl">⚠️</span>
-              <h3 className="text-base font-bold text-amber-900">Complete Your Profile First to Unlock AI Coaching</h3>
-            </div>
-            <p className="text-xs text-amber-800 leading-relaxed max-w-xl">
-              Your candidate profile is currently incomplete ({user?.profile?.completion_percentage || 15}% completed). To receive accurate AI career roadmaps, skill gap analysis, and target salary projections, please complete your profile details first.
-            </p>
-          </div>
-          <Link
-            href="/onboarding"
-            className="shrink-0 rounded-2xl bg-amber-900 px-5 py-3 text-xs font-extrabold text-white shadow-md hover:bg-amber-950 transition"
-          >
-            Complete Profile Now →
-          </Link>
+      {/* Access Control Overlay Banner for Guests or Incomplete Profiles */}
+      {!isUnlocked && (
+        <div className="sticky top-20 z-20 mx-auto max-w-xl rounded-3xl border border-blue-200 bg-white/95 p-6 shadow-2xl backdrop-blur-md text-center space-y-4 my-6">
+          {isGuest ? (
+            <>
+              <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto text-xl font-bold">
+                🔒
+              </div>
+              <h2 className="text-lg font-extrabold text-slate-950">Login to Unlock AI Career Roadmap</h2>
+              <p className="text-xs text-slate-600 max-w-md mx-auto">
+                Sign in to analyze your skills, discover career growth opportunities, and unlock personalized 30-60-90 day execution plans.
+              </p>
+              <button
+                type="button"
+                onClick={() => setAuthModalOpen(true)}
+                className="inline-flex items-center justify-center rounded-2xl bg-blue-600 px-6 py-3 text-xs font-extrabold text-white shadow-md hover:bg-blue-700 transition"
+              >
+                Sign In / Create Account →
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto text-xl font-bold">
+                ⚠️
+              </div>
+              <h2 className="text-lg font-extrabold text-slate-950">Complete Your Profile First</h2>
+              <p className="text-xs text-slate-600 max-w-md mx-auto">
+                Your candidate profile is incomplete. Complete your profile details and skills to generate your customized AI Career Roadmap.
+              </p>
+              <Link
+                href="/onboarding"
+                className="inline-flex items-center justify-center rounded-2xl bg-amber-900 px-6 py-3 text-xs font-extrabold text-white shadow-md hover:bg-amber-950 transition"
+              >
+                Complete Profile Now →
+              </Link>
+            </>
+          )}
         </div>
       )}
-
 
       {loading ? (
         <div className="py-12 text-center text-xs font-semibold text-gray-500">
           Generating personalized career roadmap...
         </div>
       ) : roadmap ? (
-        <div className="space-y-8">
+        <div className={`space-y-8 transition-all duration-300 ${!isUnlocked ? "filter blur-md select-none pointer-events-none opacity-40" : ""}`}>
           {/* Executive Overview Cards */}
           <div className="grid gap-4 sm:grid-cols-4">
             <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-subtle space-y-1">
