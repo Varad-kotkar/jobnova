@@ -57,13 +57,12 @@ async def query_jobs(
     if remote is not None:
         filters.append(Job.remote.is_(remote))
 
-    # 3-Day Job Expiration Filter: Only show jobs published within last 3 days
+    # 30-Day Freshness Filter
     from datetime import datetime, timezone, timedelta
-    three_days_ago = datetime.now(timezone.utc) - timedelta(days=3)
-    filters.append(Job.published_at >= three_days_ago)
+    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+    filters.append(Job.published_at >= thirty_days_ago)
 
     query = select(Job).options(joinedload(Job.company))
-
 
     # Join company if needed for filters or keyword match
     needs_company_join = company is not None or clean_keyword is not None
@@ -73,8 +72,7 @@ async def query_jobs(
     if filters:
         query = query.where(and_(*filters))
 
-    # Smart Priority Ranking Score Calculation (India-first, Remote, Internship, Data/AI)
-    # +40 India location, +30 Remote, +25 Internship, +25 Data/AI, +15 Fresher
+    # Smart Priority Ranking Score Calculation
     india_score = case(
         (
             or_(
@@ -133,7 +131,7 @@ async def query_jobs(
         )
         order_clauses.append(relevance_rank.asc())
 
-    # Smart Priority Score as primary ranking factor for default sorting
+    # Smart Priority Score as primary ranking factor
     order_clauses.append(desc(total_smart_score))
 
     if sort_by == "oldest":
@@ -141,7 +139,9 @@ async def query_jobs(
     else:
         order_clauses.append(desc(Job.published_at))
 
-    query = query.order_by(*order_clauses).offset(offset).limit(page_size)
+    # Fetch candidate pool for round-robin company interleaving
+    candidate_pool_size = max(page_size * 8, 200)
+    query = query.order_by(*order_clauses).offset(offset).limit(candidate_pool_size)
 
     # Count query
     count_query = select(sa.func.count()).select_from(Job)
@@ -153,25 +153,26 @@ async def query_jobs(
     result = await session.execute(query)
     all_jobs = result.scalars().all()
 
-    # Company Diversity Cap: Max 3 jobs per company per page to ensure balanced distribution
-    diverse_jobs = []
-    company_counts: Dict[str, int] = {}
+    # Round-Robin Company Interleaving to ensure multi-company diversity
+    by_company: Dict[str, List[Job]] = {}
     for job in all_jobs:
         comp_name = job.company.name if job.company else "Unknown"
-        count = company_counts.get(comp_name, 0)
-        if count < 3:
-            diverse_jobs.append(job)
-            company_counts[comp_name] = count + 1
+        if comp_name not in by_company:
+            by_company[comp_name] = []
+        by_company[comp_name].append(job)
 
-    # If diverse_jobs has space, backfill with remaining jobs
-    if len(diverse_jobs) < len(all_jobs) and len(diverse_jobs) < page_size:
-        seen_ids = {j.id for j in diverse_jobs}
-        for j in all_jobs:
-            if j.id not in seen_ids:
-                diverse_jobs.append(j)
-                seen_ids.add(j.id)
+    diverse_jobs: List[Job] = []
+    company_keys = list(by_company.keys())
+    max_len = max((len(jobs_list) for jobs_list in by_company.values()), default=0)
+
+    for i in range(max_len):
+        for comp in company_keys:
+            if i < len(by_company[comp]):
+                diverse_jobs.append(by_company[comp][i])
                 if len(diverse_jobs) >= page_size:
                     break
+        if len(diverse_jobs) >= page_size:
+            break
 
     jobs = diverse_jobs[:page_size]
 

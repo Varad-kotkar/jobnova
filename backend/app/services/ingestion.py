@@ -224,6 +224,10 @@ async def _process_listings(
         stats.duplicates,
         len(stats.errors),
     )
+    if stats.inserted > 0 or stats.updated > 0:
+        from ..core.cache import CacheManager
+        await CacheManager.delete_pattern("jobs:list:")
+
     return stats
 
 
