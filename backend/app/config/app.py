@@ -18,6 +18,7 @@ class AppConfig(BaseSettings):
     openapi_url: str = "/openapi.json"
     api_base_url: Optional[str] = None
     allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000,https://jobnova.vercel.app"
+    allowed_cors_origins: Optional[str] = None
     cors_origins: Optional[str] = None
 
     model_config = SettingsConfigDict(

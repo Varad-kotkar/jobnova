@@ -42,7 +42,7 @@ async def _ensure_permanent_admin() -> None:
     try:
         sessionmaker = get_async_sessionmaker()
         async with sessionmaker() as session:
-            admin_email = "kotkarvarad12@gmail.com"
+            admin_email = os.getenv("ADMIN_EMAIL", "kotkarvarad12@gmail.com").strip().lower()
             stmt = select(User).where(User.email == admin_email)
             res = await session.execute(stmt)
             admin_user = res.scalars().first()
@@ -131,7 +131,7 @@ def create_application() -> FastAPI:
         "https://jobnova-w5xp.onrender.com",
         "https://jobnova-gata-8wrmrvto5-varad-kotkars-projects.vercel.app",
     ]
-    extra_cors = (settings.cors_origins or "").split(",")
+    extra_cors = (settings.cors_origins or settings.allowed_cors_origins or "").split(",")
     env_origins = [origin.strip() for origin in (settings.allowed_origins + "," + ",".join(extra_cors)).split(",") if origin.strip()]
     all_origins = list(dict.fromkeys(default_origins + env_origins))
 

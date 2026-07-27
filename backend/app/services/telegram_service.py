@@ -17,7 +17,7 @@ class TelegramService:
     @staticmethod
     def get_credentials() -> tuple[str, str]:
         token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
-        channel_id = os.getenv("TELEGRAM_CHANNEL_ID", "").strip()
+        channel_id = (os.getenv("TELEGRAM_CHANNEL_ID") or os.getenv("TELEGRAM_CHAT_ID") or "").strip()
         return token, channel_id
 
     @staticmethod

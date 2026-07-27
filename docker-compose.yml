@@ -41,8 +41,10 @@ services:
       - ENVIRONMENT=production
       - DATABASE_URL=postgresql+asyncpg://jobnova_user:password123@postgres:5432/jobnova_db
       - REDIS_URL=redis://redis:6379/0
-      - JWT_SECRET=production_jwt_secret_key_jobnova_v1_release_64char_length
-      - ALLOWED_CORS_ORIGINS=http://localhost:3000,http://frontend:3000
+      - JWT_SECRET_KEY=production_jwt_secret_key_jobnova_v1_release_64char_length
+      - ADMIN_EMAIL=admin@jobnova.com
+      - ADMIN_PASSWORD=AdminJobNova2026!
+      - ALLOWED_ORIGINS=http://localhost:3000,http://frontend:3000
     ports:
       - "8000:8000"
     depends_on:

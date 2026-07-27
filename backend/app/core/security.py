@@ -20,7 +20,7 @@ from ..models.user import User
 
 logger = logging.getLogger("backend.app.security")
 
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "jobnova-super-secret-jwt-key-change-in-production-2026")
+SECRET_KEY = os.getenv("JWT_SECRET_KEY") or os.getenv("JWT_SECRET") or "jobnova-super-secret-jwt-key-change-in-production-2026"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 
