@@ -73,7 +73,69 @@ TAXONOMY = [
 ]
 
 
+INTERNSHIP_KEYWORDS = [
+    "intern", "internship", "sde intern", "software intern", "ai intern",
+    "ml intern", "data analyst intern", "graduate intern"
+]
+
+FRESHER_KEYWORDS = [
+    "fresher", "graduate", "associate", "entry level", "junior",
+    "trainee", "campus", "new grad"
+]
+
+INDIA_CITIES = [
+    "bengaluru", "bangalore", "pune", "mumbai", "hyderabad", "chennai",
+    "delhi", "gurugram", "gurgaon", "noida", "kochi", "ahmedabad"
+]
+
+
 class CategoryClassifier:
+    @staticmethod
+    def classify_metadata(job: Job) -> None:
+        title_lower = (job.title or "").lower()
+        desc_lower = (job.description or "").lower()
+        loc_lower = (job.location or "").lower()
+
+        # Internship classification
+        is_intern = any(kw in title_lower or kw in desc_lower[:300] for kw in INTERNSHIP_KEYWORDS)
+        job.is_internship = is_intern
+
+        # Fresher classification
+        is_fresh = any(kw in title_lower or kw in desc_lower[:300] for kw in FRESHER_KEYWORDS)
+        job.is_fresher = is_fresh
+
+        # Employment type
+        if is_intern:
+            job.employment_type = "Internship"
+        elif "contract" in title_lower or "contract" in desc_lower[:200]:
+            job.employment_type = "Contract"
+        else:
+            job.employment_type = "Full-Time"
+
+        # Experience level
+        if is_fresh:
+            job.experience_level = "Fresher"
+        elif is_intern:
+            job.experience_level = "Internship"
+        elif "senior" in title_lower or "staff" in title_lower or "lead" in title_lower or "principal" in title_lower:
+            job.experience_level = "Senior Level"
+        else:
+            job.experience_level = "Mid Level"
+
+        # Country and City classification
+        if any(city in loc_lower for city in INDIA_CITIES) or "india" in loc_lower:
+            job.country = "India"
+            found_city = next((city.capitalize() for city in INDIA_CITIES if city in loc_lower), "India")
+            if found_city == "Bangalore":
+                found_city = "Bengaluru"
+            job.city = found_city
+        elif job.remote or "remote" in loc_lower:
+            job.country = "Remote"
+            job.city = "Remote"
+        else:
+            job.country = "Global"
+            job.city = job.location.split(",")[0].strip() if job.location else "Global"
+
     @staticmethod
     async def ensure_categories_exist(session: AsyncSession) -> List[Category]:
         categories = []
@@ -94,6 +156,9 @@ class CategoryClassifier:
 
     @classmethod
     async def classify_and_assign(cls, session: AsyncSession, job: Job) -> List[str]:
+        # Populate DB metadata attributes
+        cls.classify_metadata(job)
+
         db_categories = await cls.ensure_categories_exist(session)
         
         search_text = f"{job.title} {job.description} {' '.join(job.skills or [])}".lower()

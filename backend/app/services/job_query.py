@@ -208,3 +208,109 @@ async def query_jobs(
     }
 
     return jobs, pagination_meta
+
+
+def _interleave_by_company(jobs: List[Job], limit: int = 12) -> List[Job]:
+    by_company: Dict[str, List[Job]] = {}
+    for job in jobs:
+        comp_name = job.company.name if (hasattr(job, "company") and job.company) else "Unknown"
+        if comp_name not in by_company:
+            by_company[comp_name] = []
+        by_company[comp_name].append(job)
+
+    interleaved: List[Job] = []
+    company_keys = list(by_company.keys())
+    max_len = max((len(l) for l in by_company.values()), default=0)
+
+    for i in range(max_len):
+        for comp in company_keys:
+            if i < len(by_company[comp]):
+                interleaved.append(by_company[comp][i])
+                if len(interleaved) >= limit:
+                    break
+        if len(interleaved) >= limit:
+            break
+
+    return interleaved[:limit]
+
+
+async def query_home_jobs(session: AsyncSession) -> Dict[str, List[Job]]:
+    from datetime import datetime, timezone, timedelta
+    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+    base_filter = and_(Job.is_active == True, Job.published_at >= thirty_days_ago)
+
+    # 1. India Jobs (country == 'India' or location contains India, Bengaluru, Pune, etc.)
+    india_cities = ["india", "bengaluru", "bangalore", "pune", "mumbai", "hyderabad", "chennai", "delhi", "gurugram", "gurgaon", "noida", "kochi", "ahmedabad"]
+    india_conditions = [sa.func.lower(Job.location).like(f"%{c}%") for c in india_cities]
+    india_query = (
+        select(Job)
+        .options(joinedload(Job.company))
+        .where(base_filter, or_(Job.country == "India", *india_conditions))
+        .order_by(desc(Job.published_at))
+        .limit(60)
+    )
+    india_res = await session.execute(india_query)
+    india_raw = india_res.scalars().all()
+    india_jobs = _interleave_by_company(india_raw, limit=12)
+
+    # 2. Remote Jobs (remote == True or country == 'Remote' or location contains Remote, WFH, Anywhere)
+    remote_keywords = ["remote", "wfh", "anywhere", "worldwide", "work from home"]
+    remote_conditions = [sa.func.lower(Job.location).like(f"%{r}%") for r in remote_keywords]
+    remote_query = (
+        select(Job)
+        .options(joinedload(Job.company))
+        .where(base_filter, or_(Job.remote == True, Job.country == "Remote", *remote_conditions))
+        .order_by(desc(Job.published_at))
+        .limit(60)
+    )
+    remote_res = await session.execute(remote_query)
+    remote_raw = remote_res.scalars().all()
+    remote_jobs = _interleave_by_company(remote_raw, limit=12)
+
+    # 3. Internships (is_internship == True or title contains intern)
+    intern_keywords = ["intern", "internship", "sde intern", "software intern", "ai intern", "ml intern", "graduate intern"]
+    intern_conditions = [sa.func.lower(Job.title).like(f"%{k}%") for k in intern_keywords]
+    intern_query = (
+        select(Job)
+        .options(joinedload(Job.company))
+        .where(base_filter, or_(Job.is_internship == True, *intern_conditions))
+        .order_by(desc(Job.published_at))
+        .limit(60)
+    )
+    intern_res = await session.execute(intern_query)
+    intern_raw = intern_res.scalars().all()
+    intern_jobs = _interleave_by_company(intern_raw, limit=12)
+
+    # 4. Freshers (is_fresher == True or title contains fresher, graduate, associate, etc.)
+    fresher_keywords = ["fresher", "graduate", "associate", "entry level", "junior", "trainee", "campus", "new grad"]
+    fresher_conditions = [sa.func.lower(Job.title).like(f"%{k}%") for k in fresher_keywords]
+    fresher_query = (
+        select(Job)
+        .options(joinedload(Job.company))
+        .where(base_filter, or_(Job.is_fresher == True, *fresher_conditions))
+        .order_by(desc(Job.published_at))
+        .limit(60)
+    )
+    fresher_res = await session.execute(fresher_query)
+    fresher_raw = fresher_res.scalars().all()
+    fresher_jobs = _interleave_by_company(fresher_raw, limit=12)
+
+    # 5. Latest Jobs
+    latest_query = (
+        select(Job)
+        .options(joinedload(Job.company))
+        .where(base_filter)
+        .order_by(desc(Job.published_at))
+        .limit(60)
+    )
+    latest_res = await session.execute(latest_query)
+    latest_raw = latest_res.scalars().all()
+    latest_jobs = _interleave_by_company(latest_raw, limit=12)
+
+    return {
+        "india_jobs": india_jobs,
+        "remote_jobs": remote_jobs,
+        "internships": intern_jobs,
+        "freshers": fresher_jobs,
+        "latest": latest_jobs,
+    }

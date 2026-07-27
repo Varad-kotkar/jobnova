@@ -7,8 +7,8 @@ from sqlalchemy.orm import joinedload
 
 from ..database.session import get_session
 from ..models.job import Job
-from ..schemas.job import JobListResponse, JobResponse, PaginationMeta
-from ..services.job_query import query_jobs
+from ..schemas.job import HomeJobsResponse, JobListResponse, JobResponse, PaginationMeta
+from ..services.job_query import query_jobs, query_home_jobs
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 
@@ -45,6 +45,29 @@ async def list_jobs(
     job_responses = [JobResponse.from_orm_model(job) for job in jobs]
     meta_response = PaginationMeta(**meta)
     res = JobListResponse(items=job_responses, pagination=meta_response)
+    await CacheManager.set(cache_key, res.model_dump(), ttl_seconds=300)
+    return res
+
+
+@router.get("/home", response_model=HomeJobsResponse, status_code=status.HTTP_200_OK)
+async def get_home_jobs(
+    session: AsyncSession = Depends(get_session),
+) -> HomeJobsResponse:
+    cache_key = "jobs:home:curated"
+    from ..core.cache import CacheManager
+    cached_res = await CacheManager.get(cache_key)
+    if cached_res:
+        return HomeJobsResponse(**cached_res)
+
+    home_data = await query_home_jobs(session)
+
+    res = HomeJobsResponse(
+        india_jobs=[JobResponse.from_orm_model(j) for j in home_data["india_jobs"]],
+        remote_jobs=[JobResponse.from_orm_model(j) for j in home_data["remote_jobs"]],
+        internships=[JobResponse.from_orm_model(j) for j in home_data["internships"]],
+        freshers=[JobResponse.from_orm_model(j) for j in home_data["freshers"]],
+        latest=[JobResponse.from_orm_model(j) for j in home_data["latest"]],
+    )
     await CacheManager.set(cache_key, res.model_dump(), ttl_seconds=300)
     return res
 

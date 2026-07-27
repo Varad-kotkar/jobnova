@@ -56,3 +56,11 @@ class PaginationMeta(BaseModel):
 class JobListResponse(BaseModel):
     items: List[JobResponse]
     pagination: PaginationMeta
+
+
+class HomeJobsResponse(BaseModel):
+    india_jobs: List[JobResponse]
+    remote_jobs: List[JobResponse]
+    internships: List[JobResponse]
+    freshers: List[JobResponse]
+    latest: List[JobResponse]

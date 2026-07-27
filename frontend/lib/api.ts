@@ -59,3 +59,30 @@ export async function apiFetch<T>(
     throw error;
   }
 }
+
+export interface HomeJobsData {
+  india_jobs: any[];
+  remote_jobs: any[];
+  internships: any[];
+  freshers: any[];
+  latest: any[];
+}
+
+export async function getHomeJobs(): Promise<HomeJobsData> {
+  const baseUrl = getApiUrl();
+  try {
+    const res = await fetch(`${baseUrl}/api/jobs/home`, { cache: "no-store" });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.warn("getHomeJobs fetch warning:", err);
+  }
+  return {
+    india_jobs: [],
+    remote_jobs: [],
+    internships: [],
+    freshers: [],
+    latest: [],
+  };
+}
