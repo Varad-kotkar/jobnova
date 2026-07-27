@@ -52,21 +52,8 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<AppUser | null>(() => {
-    if (typeof window === "undefined") return null;
-    try {
-      const stored = localStorage.getItem("jobnova_session_user");
-      return stored ? JSON.parse(stored) : null;
-    } catch {
-      return null;
-    }
-  });
-
-  const [token, setToken] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
-    return localStorage.getItem("jobnova_session_token") || null;
-  });
-
+  const [user, setUser] = useState<AppUser | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
   const saveSession = (u: AppUser | null, t: string | null) => {
@@ -82,6 +69,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
   };
+
+  // Mount effect: hydrate session from localStorage and verify with backend /api/auth/me
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    let storedUser: AppUser | null = null;
+    let storedToken: string | null = null;
+
+    try {
+      const uStr = localStorage.getItem("jobnova_session_user");
+      storedToken = localStorage.getItem("jobnova_session_token");
+      if (uStr) storedUser = JSON.parse(uStr);
+    } catch {
+      localStorage.removeItem("jobnova_session_user");
+      localStorage.removeItem("jobnova_session_token");
+    }
+
+    if (storedUser && storedToken) {
+      setUser(storedUser);
+      setToken(storedToken);
+    }
+
+    if (storedToken) {
+      const apiBase = getApiUrl();
+      fetch(`${apiBase}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${storedToken}` },
+      })
+        .then((res) => {
+          if (res.ok) {
+            return res.json().then((userData) => {
+              saveSession(userData, storedToken);
+            });
+          } else if (res.status === 401) {
+            // Stale or expired token: clear session gracefully and treat as logged out
+            saveSession(null, null);
+          }
+        })
+        .catch((err) => {
+          console.warn("Auth /me verification error:", err);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    } else {
+      setLoading(false);
+    }
+  }, []);
 
   // Handle Google redirect result on mount (popup-blocked fallback)
   useEffect(() => {
@@ -115,6 +149,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (meRes.ok) {
             const userData = await meRes.json();
             saveSession(userData, idToken);
+          } else if (meRes.status === 401) {
+            // Clear session on 401
+            saveSession(null, null);
           } else {
             // Upsert / initialize user if not present (first Google sign-in)
             const initRes = await fetch(`${apiBase}/api/auth/register`, {
@@ -139,10 +176,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         // Firebase explicitly fired null — user signed out on Firebase side
-        // Only clear if we previously had a Firebase-managed session
         const storedToken = typeof window !== "undefined" ? localStorage.getItem("jobnova_session_token") : null;
         if (storedToken && storedToken.length > 100) {
-          // Heuristic: JWT tokens are long; Firebase ID tokens are very long
           saveSession(null, null);
         }
       }

@@ -10,6 +10,7 @@ import {
   getAppliedJobs,
   getUserProfile,
   toggleSaveJob,
+  DEFAULT_USER_PROFILE,
   SavedJobItem,
   AppliedJobItem,
   UserProfileData,
@@ -66,7 +67,7 @@ export default function DashboardPage() {
   );
   const [savedJobs, setSavedJobs] = useState<SavedJobItem[]>([]);
   const [appliedJobs, setAppliedJobs] = useState<AppliedJobItem[]>([]);
-  const [profile, setProfile] = useState<UserProfileData>(getUserProfile());
+  const [profile, setProfile] = useState<UserProfileData>(DEFAULT_USER_PROFILE);
   const [stats, setStats] = useState<DashboardStatsData | null>(null);
 
   // Auth guard — redirect unauthenticated users

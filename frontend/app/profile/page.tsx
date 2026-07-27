@@ -4,11 +4,11 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/auth-context";
 import { getApiUrl } from "@/lib/api";
-import { getUserProfile, saveUserProfile, UserProfileData } from "@/lib/storage";
+import { getUserProfile, saveUserProfile, DEFAULT_USER_PROFILE, UserProfileData } from "@/lib/storage";
 
 export default function ProfilePage() {
   const { token, user } = useAuth();
-  const [profile, setProfile] = useState<UserProfileData>(getUserProfile());
+  const [profile, setProfile] = useState<UserProfileData>(DEFAULT_USER_PROFILE);
   const [newSkill, setNewSkill] = useState("");
   const [savedNotice, setSavedNotice] = useState(false);
   const [uploading, setUploading] = useState(false);

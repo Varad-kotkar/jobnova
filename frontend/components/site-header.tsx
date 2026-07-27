@@ -48,14 +48,22 @@ export default function SiteHeader() {
       fetch(`${apiBase}/api/notifications`, {
         headers: { Authorization: `Bearer ${token}` },
       })
-        .then((res) => (res.ok ? res.json() : null))
-        .then((data) => {
-          if (data) {
-            setNotifications(data.notifications || []);
-            setUnreadCount(data.unread_count || 0);
+        .then((res) => {
+          if (res.ok) {
+            return res.json().then((data) => {
+              setNotifications(data.notifications || []);
+              setUnreadCount(data.unread_count || 0);
+            });
+          } else {
+            // Unauthenticated (401) or error — reset notifications state silently
+            setNotifications([]);
+            setUnreadCount(0);
           }
         })
         .catch((err) => console.warn("Notifications fetch error:", err));
+    } else {
+      setNotifications([]);
+      setUnreadCount(0);
     }
   }, [token, user]);
 
