@@ -30,13 +30,13 @@ class UserProfile(Base):
     remote_preference = Column(Boolean, nullable=True, default=True)
     salary_expectation = Column(String(100), nullable=True)
     completion_percentage = Column(Integer, nullable=False, default=10)
-    onboarding_completed = Column(Boolean, nullable=False, default=False)
+    onboarding_completed = Column(Boolean, nullable=False, default=False, server_default=sa.text("false"))
     availability = Column(String(100), nullable=True)  # Immediately, 2 weeks, 1 month, etc.
     work_authorization = Column(String(100), nullable=True)  # Citizen, PR, Visa required
     experience_years = Column(Integer, nullable=True)
     saved_companies = Column(JSON, nullable=True, default=list)  # [company_id, ...]
     recently_viewed_jobs = Column(JSON, nullable=True, default=list)  # [{job_id, viewed_at}, ...]
-    weekly_summary_enabled = Column(Boolean, nullable=False, default=True)
+    weekly_summary_enabled = Column(Boolean, nullable=False, default=True, server_default=sa.text("true"))
     created_at = Column(DateTime(timezone=True), server_default=sa.func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now(), nullable=False)
 

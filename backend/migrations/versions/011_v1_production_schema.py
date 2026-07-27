@@ -25,13 +25,13 @@ def upgrade() -> None:
         batch_op.add_column(sa.Column("career_goal", sa.String(500), nullable=True))
         batch_op.add_column(sa.Column("saved_companies", sa.JSON, nullable=True))
         batch_op.add_column(sa.Column("recently_viewed_jobs", sa.JSON, nullable=True))
-        batch_op.add_column(sa.Column("weekly_summary_enabled", sa.Boolean, nullable=False, server_default=sa.text("1")))
+        batch_op.add_column(sa.Column("weekly_summary_enabled", sa.Boolean, nullable=False, server_default=sa.text("true")))
 
     # --- Company enhancements ---
     with op.batch_alter_table("companies") as batch_op:
         batch_op.add_column(sa.Column("benefits", sa.JSON, nullable=True))
         batch_op.add_column(sa.Column("tech_stack", sa.JSON, nullable=True))
-        batch_op.add_column(sa.Column("verified", sa.Boolean, nullable=False, server_default=sa.text("0")))
+        batch_op.add_column(sa.Column("verified", sa.Boolean, nullable=False, server_default=sa.text("false")))
         batch_op.add_column(sa.Column("founded_year", sa.Integer, nullable=True))
         batch_op.add_column(sa.Column("employee_count", sa.String(100), nullable=True))
         batch_op.add_column(sa.Column("culture", sa.Text, nullable=True))
@@ -40,12 +40,12 @@ def upgrade() -> None:
         batch_op.add_column(sa.Column("social_links", sa.JSON, nullable=True))
         batch_op.add_column(sa.Column("hiring_frequency", sa.String(100), nullable=True))
         batch_op.add_column(sa.Column("avg_response_time", sa.String(100), nullable=True))
-        batch_op.add_column(sa.Column("featured", sa.Boolean, nullable=False, server_default=sa.text("0")))
+        batch_op.add_column(sa.Column("featured", sa.Boolean, nullable=False, server_default=sa.text("false")))
 
     # --- Job enhancements ---
     with op.batch_alter_table("jobs") as batch_op:
-        batch_op.add_column(sa.Column("is_active", sa.Boolean, nullable=False, server_default=sa.text("1")))
-        batch_op.add_column(sa.Column("featured", sa.Boolean, nullable=False, server_default=sa.text("0")))
+        batch_op.add_column(sa.Column("is_active", sa.Boolean, nullable=False, server_default=sa.text("true")))
+        batch_op.add_column(sa.Column("featured", sa.Boolean, nullable=False, server_default=sa.text("false")))
 
     # --- Saved Searches table ---
     op.create_table(
@@ -55,7 +55,7 @@ def upgrade() -> None:
         sa.Column("label", sa.String(255), nullable=False),
         sa.Column("query", sa.String(500), nullable=False),
         sa.Column("filters", sa.JSON, nullable=True),
-        sa.Column("notify", sa.Boolean, nullable=False, server_default=sa.text("1")),
+        sa.Column("notify", sa.Boolean, nullable=False, server_default=sa.text("true")),
         sa.Column("last_notified_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )

@@ -30,7 +30,7 @@ def upgrade() -> None:
         sa.Column("extracted_experience", sa.JSON(), nullable=True),
         sa.Column("extracted_education", sa.JSON(), nullable=True),
         sa.Column("contact_info", sa.JSON(), nullable=True),
-        sa.Column("is_primary", sa.Boolean(), nullable=False, server_default=sa.text("1")),
+        sa.Column("is_primary", sa.Boolean(), nullable=False, server_default=sa.text("true")),
         sa.Column("version", sa.Integer(), nullable=False, server_default=sa.text("1")),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("CURRENT_TIMESTAMP"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("CURRENT_TIMESTAMP"), nullable=False),

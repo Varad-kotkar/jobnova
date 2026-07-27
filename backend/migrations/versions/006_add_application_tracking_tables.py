@@ -30,7 +30,7 @@ def upgrade() -> None:
         sa.Column("salary_offered", sa.String(length=100), nullable=True),
         sa.Column("priority", sa.String(length=20), nullable=False, server_default="Medium"),
         sa.Column("follow_up_date", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("archived", sa.Boolean(), nullable=False, server_default=sa.text("0")),
+        sa.Column("archived", sa.Boolean(), nullable=False, server_default=sa.text("false")),
         sa.Column("applied_at", sa.DateTime(timezone=True), server_default=sa.text("CURRENT_TIMESTAMP"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("CURRENT_TIMESTAMP"), nullable=False),
         sa.ForeignKeyConstraint(["job_id"], ["jobs.id"], ondelete="CASCADE"),

@@ -26,7 +26,7 @@ def upgrade() -> None:
         sa.Column("message", sa.Text(), nullable=False),
         sa.Column("priority", sa.String(length=20), nullable=False, server_default="Medium"),
         sa.Column("channel", sa.String(length=20), nullable=False, server_default="App"),
-        sa.Column("is_read", sa.Boolean(), nullable=False, server_default=sa.text("0")),
+        sa.Column("is_read", sa.Boolean(), nullable=False, server_default=sa.text("false")),
         sa.Column("read_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("CURRENT_TIMESTAMP"), nullable=False),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
