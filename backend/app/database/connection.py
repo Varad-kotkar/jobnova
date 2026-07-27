@@ -31,10 +31,7 @@ async def connect_to_database(raw_database_url: str) -> None:
         else:
             _engine = create_async_engine(clean_url, future=True)
 
-        async with _engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-
-        logger.info("Database connection established and schema verified successfully")
+        logger.info("Database connection established successfully")
 
 
 async def disconnect_from_database() -> None:

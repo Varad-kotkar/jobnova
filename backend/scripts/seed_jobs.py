@@ -172,13 +172,6 @@ async def main() -> None:
     print(f"Connecting to database: {database_config.database_url}")
     await connect_to_database(database_config.database_url)
 
-    # Create tables if they don't exist
-    from app.models.base import Base
-    from app.database.connection import get_engine
-    engine = get_engine()
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
     print(f"Seeding {len(SEED_JOBS)} job listings...")
     ingested = await ingest_job_listings(SEED_JOBS, source_name="seed")
     print(f"Successfully ingested {len(ingested)} new jobs (duplicates skipped)")

@@ -6,22 +6,14 @@ from app.models.base import Base
 
 
 def ensure_db():
-    db_url = os.environ.get("DATABASE_URL", "sqlite+aiosqlite:///./jobnova.db")
-    if db_url.startswith("sqlite+aiosqlite://"):
-        sync_url = db_url.replace("+aiosqlite", "")
-    else:
-        sync_url = db_url
-
-    # For file paths, ensure directory exists
-    if sync_url.startswith("sqlite:///./"):
-        db_path = Path(sync_url.replace("sqlite:///", ""))
-        if not db_path.parent.exists():
-            db_path.parent.mkdir(parents=True, exist_ok=True)
-
-    engine = create_engine(sync_url, connect_args={"check_same_thread": False})
-    Base.metadata.create_all(engine)
+    from alembic.config import Config
+    from alembic import command
+    root_dir = Path(__file__).resolve().parent.parent
+    alembic_cfg = Config(str(root_dir / "alembic.ini"))
+    alembic_cfg.set_main_option("script_location", str(root_dir / "migrations"))
+    command.upgrade(alembic_cfg, "head")
 
 
 if __name__ == "__main__":
     ensure_db()
-    print("Database ensured")
+    print("Database ensured via Alembic migrations")
