@@ -47,6 +47,7 @@ def _meme_to_dict(m: Meme) -> Dict[str, Any]:
 
 
 @router.get("", status_code=status.HTTP_200_OK)
+@router.get("/", status_code=status.HTTP_200_OK)
 async def list_memes(
     category: Optional[str] = Query(None),
     session: AsyncSession = Depends(get_session),

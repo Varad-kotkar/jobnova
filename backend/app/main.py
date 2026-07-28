@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import func, select
 
-from .api import create_api_router
+from .api import create_api_router, register_api_routers
 from .config.settings import database_config, settings
 from .core.orchestrator import PluginOrchestrator
 from .database.connection import connect_to_database, disconnect_from_database
@@ -30,7 +30,6 @@ async def _run_scheduled_ingestion() -> None:
         await purge_expired_jobs(max_age_days=3)
     except Exception as exc:
         logger.exception("Scheduled ingestion or job purge failed", extra={"error": str(exc)})
-
 
 
 import os
@@ -115,7 +114,6 @@ async def lifespan(application: FastAPI):
     await disconnect_from_database()
 
 
-
 def create_application() -> FastAPI:
     app = FastAPI(
         title=settings.app_name,
@@ -149,8 +147,6 @@ def create_application() -> FastAPI:
     from fastapi.responses import PlainTextResponse
     from .core.telemetry import TelemetryService
 
-    from .core.bot_protection import anti_bot_middleware
-
     @app.middleware("http")
     async def observability_and_security_middleware(request: Request, call_next):
         request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
@@ -174,10 +170,38 @@ def create_application() -> FastAPI:
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["X-XSS-Protection"] = "1; mode=block"
-        response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; connect-src 'self' https://www.google-analytics.com; style-src 'self' 'unsafe-inline';"
+
+        # Swagger UI & OpenAPI CSP relaxation so /docs renders CDN resources cleanly
+        path = request.url.path
+        if path.startswith("/docs") or path.startswith("/redoc") or path == "/openapi.json":
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'self' https://cdn.jsdelivr.net https://fastapi.tiangolo.com; "
+                "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; "
+                "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+                "img-src 'self' data: https://fastapi.tiangolo.com https://cdn.jsdelivr.net;"
+            )
+        else:
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'self' https://cdn.jsdelivr.net https://fastapi.tiangolo.com; "
+                "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://www.googletagmanager.com; "
+                "connect-src 'self' https://www.google-analytics.com; "
+                "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+                "img-src 'self' data: https://fastapi.tiangolo.com https://cdn.jsdelivr.net;"
+            )
+
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
 
         return response
+
+    @app.get("/", status_code=status.HTTP_200_OK, tags=["root"])
+    async def root():
+        return {
+            "status": "ok",
+            "app_name": settings.app_name,
+            "version": settings.app_version,
+            "docs": "/docs",
+            "openapi": "/openapi.json",
+        }
 
     @app.get("/metrics", response_class=PlainTextResponse, status_code=status.HTTP_200_OK, tags=["telemetry"])
     async def metrics_endpoint():
@@ -209,8 +233,16 @@ def create_application() -> FastAPI:
             content={"success": False, "error": {"code": "INTERNAL_ERROR", "message": "An unexpected error occurred."}},
         )
 
+    # Register API routers
+    register_api_routers(app)
 
-    app.include_router(create_api_router())
+    # Log every registered route at startup
+    for route in app.routes:
+        path = getattr(route, "path", None)
+        if path:
+            methods = getattr(route, "methods", None)
+            logger.info("%s %s", methods, path)
+
     return app
 
 

@@ -58,8 +58,13 @@ class PluginOrchestrator:
         )
 
     async def run(self) -> OrchestratorSummary:
-        tasks = [self._execute_plugin(plugin) for plugin in self.plugins]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        results = []
+        for plugin in self.plugins:
+            try:
+                res = await self._execute_plugin(plugin)
+                results.append(res)
+            except Exception as exc:
+                results.append(exc)
 
         summaries: List[PluginExecutionSummary] = []
         total_inserted = 0
