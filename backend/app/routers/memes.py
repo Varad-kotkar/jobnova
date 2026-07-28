@@ -46,6 +46,21 @@ def _meme_to_dict(m: Meme) -> Dict[str, Any]:
     }
 
 
+DEFAULT_MEMES = [
+    {
+        "id": "meme-default-1",
+        "title": "Career Motivation & Tech Life",
+        "image_url": "/images/career-motivation.png",
+        "category": "motivation",
+        "is_pinned": True,
+        "is_active": True,
+        "source": "jobnova",
+        "alt_text": "Tech Career Motivation",
+        "created_at": "2026-07-28T00:00:00Z",
+    }
+]
+
+
 @router.get("", status_code=status.HTTP_200_OK)
 @router.get("/", status_code=status.HTTP_200_OK)
 async def list_memes(
@@ -59,7 +74,12 @@ async def list_memes(
     stmt = stmt.order_by(Meme.is_pinned.desc(), Meme.created_at.desc()).limit(20)
     result = await session.execute(stmt)
     memes = result.scalars().all()
-    return {"success": True, "data": [_meme_to_dict(m) for m in memes]}
+    
+    data = [_meme_to_dict(m) for m in memes]
+    if not data:
+        data = DEFAULT_MEMES
+
+    return {"success": True, "data": data}
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)

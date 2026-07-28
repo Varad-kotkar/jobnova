@@ -6,7 +6,7 @@ import logging
 import re
 from typing import Iterable, List, Optional
 
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database.session import get_async_sessionmaker
@@ -203,9 +203,9 @@ async def _process_listings(
                 existing_job.title = listing.title
                 existing_job.description = clean_desc
                 existing_job.location = listing.location
-                existing_job.skills = listing.skills
-                existing_job.remote = listing.remote
-                existing_job.published_at = listing.published_at
+                if listing.published_at:
+                    if not existing_job.published_at or listing.published_at > existing_job.published_at:
+                        existing_job.published_at = listing.published_at
                 existing_job.duplicate_hash = dup_hash
                 if salary_text:
                     existing_job.salary = salary_text
@@ -314,10 +314,18 @@ async def _get_or_create_company(session: AsyncSession, name: str) -> Company:
 async def purge_expired_jobs(session: Optional[AsyncSession] = None, max_age_days: int = 3) -> int:
     """Deactivates active job listings older than max_age_days (default 3 days)."""
     from datetime import datetime, timezone, timedelta
-    cutoff_date = datetime.now(timezone.utc) - timedelta(days=max_age_days)
+    now = datetime.now(timezone.utc)
+    cutoff_date_aware = now - timedelta(days=max_age_days)
+    cutoff_date_naive = cutoff_date_aware.replace(tzinfo=None)
 
     async def _purge(sess: AsyncSession) -> int:
-        stmt = select(Job).where(Job.is_active == True, Job.published_at < cutoff_date)
+        stmt = select(Job).where(
+            Job.is_active == True,
+            or_(
+                Job.published_at < cutoff_date_aware,
+                Job.published_at < cutoff_date_naive,
+            ),
+        )
         result = await sess.execute(stmt)
         expired_jobs = result.scalars().all()
         deactivated_count = 0
@@ -326,7 +334,10 @@ async def purge_expired_jobs(session: Optional[AsyncSession] = None, max_age_day
             deactivated_count += 1
         if deactivated_count > 0:
             await sess.commit()
-            logger.info("Purged/Deactivated %d jobs older than %d days.", deactivated_count, max_age_days)
+            from ..core.cache import CacheManager
+            await CacheManager.delete_pattern("jobs:list:")
+            await CacheManager.delete_pattern("jobs:home:")
+            logger.info("Purged/Deactivated %d jobs older than %d days and cleared homepage cache.", deactivated_count, max_age_days)
         return deactivated_count
 
     if session is None:

@@ -25,11 +25,15 @@ async def _run_scheduled_ingestion() -> None:
         orchestrator = PluginOrchestrator()
         await orchestrator.initialize()
         await orchestrator.run()
-
-        from .services.ingestion import purge_expired_jobs
-        await purge_expired_jobs(max_age_days=3)
     except Exception as exc:
-        logger.exception("Scheduled ingestion or job purge failed", extra={"error": str(exc)})
+        logger.exception("Scheduled ingestion run encountered an error", extra={"error": str(exc)})
+    finally:
+        try:
+            from .services.ingestion import purge_expired_jobs
+            deactivated = await purge_expired_jobs(max_age_days=3)
+            logger.info("Scheduler execution completed: %d expired jobs deactivated.", deactivated)
+        except Exception as exc:
+            logger.exception("Job purge step failed", extra={"error": str(exc)})
 
 
 import os
