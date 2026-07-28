@@ -294,8 +294,8 @@ async def _get_or_create_company(session: AsyncSession, name: str) -> Company:
     return company
 
 
-async def purge_expired_jobs(session: Optional[AsyncSession] = None, max_age_days: int = 30) -> int:
-    """Deactivates active job listings older than max_age_days (default 30 days)."""
+async def purge_expired_jobs(session: Optional[AsyncSession] = None, max_age_days: int = 3) -> int:
+    """Deactivates active job listings older than max_age_days (default 3 days)."""
     from datetime import datetime, timezone, timedelta
     cutoff_date = datetime.now(timezone.utc) - timedelta(days=max_age_days)
 

@@ -43,7 +43,7 @@ async def query_jobs(
     offset = (page - 1) * page_size
 
     filters = [Job.is_active == True]
-    clean_keyword = keyword.strip().lower() if keyword and keyword.strip() else None
+    clean_keyword = keyword.strip().lower() if keyword and isinstance(keyword, str) and keyword.strip() else None
 
     # Keyword search across title, description, location, company, skills
     if clean_keyword:
@@ -88,11 +88,6 @@ async def query_jobs(
         filters.append(sa.func.lower(Job.state) == state.strip().lower())
     if isinstance(category, str) and category.strip():
         filters.append(sa.func.lower(Job.job_category).like(f"%{category.strip().lower()}%"))
-
-    # 30-Day Freshness Filter
-    from datetime import datetime, timezone, timedelta
-    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
-    filters.append(Job.published_at >= thirty_days_ago)
 
     query = select(Job).options(joinedload(Job.company))
 
@@ -242,14 +237,11 @@ def _interleave_by_company(jobs: List[Job], limit: int = 12) -> List[Job]:
 
 
 async def query_trending_companies(session: AsyncSession, limit: int = 10) -> List[Dict[str, Any]]:
-    """Return top companies by number of active jobs posted in the last 30 days."""
-    from datetime import datetime, timezone, timedelta
-    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
-
+    """Return top companies by number of active jobs posted."""
     stmt = (
         select(Company, func.count(Job.id).label("job_count"))
         .join(Job, Job.company_id == Company.id)
-        .where(Job.is_active == True, Job.published_at >= thirty_days_ago)
+        .where(Job.is_active == True)
         .group_by(Company.id)
         .order_by(desc("job_count"))
         .limit(limit)
@@ -275,13 +267,10 @@ async def query_trending_companies(session: AsyncSession, limit: int = 10) -> Li
 
 async def query_home_jobs(session: AsyncSession) -> Dict[str, Any]:
     """
-    DB-driven homepage sections. Reads HomepageSection config to build each
-    section dynamically, using structured DB fields rather than title matching.
-    Falls back to hardcoded defaults if the table has no data.
+    DB-driven homepage sections with smart fallback so every section is rich
+    with active job cards.
     """
-    from datetime import datetime, timezone, timedelta
-    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
-    base_filter = and_(Job.is_active == True, Job.published_at >= thirty_days_ago)
+    base_filter = Job.is_active == True
 
     # Load section config from DB
     section_stmt = (
@@ -292,6 +281,17 @@ async def query_home_jobs(session: AsyncSession) -> Dict[str, Any]:
     section_res = await session.execute(section_stmt)
     sections = section_res.scalars().all()
 
+    # Load all active jobs ordered by published_at
+    all_active_query = (
+        select(Job)
+        .options(joinedload(Job.company))
+        .where(base_filter)
+        .order_by(desc(Job.published_at))
+        .limit(100)
+    )
+    all_active_res = await session.execute(all_active_query)
+    all_active_jobs = all_active_res.scalars().all()
+
     result: Dict[str, Any] = {}
 
     for section in sections:
@@ -299,61 +299,69 @@ async def query_home_jobs(session: AsyncSession) -> Dict[str, Any]:
         limit = section.limit or 12
         qf = section.query_filter or {}
 
-        # Skip non-job sections (e.g. developer_corner, trending_companies)
+        # Skip non-job sections
         if key in ("developer_corner", "trending_companies"):
             continue
 
         section_filters = [base_filter]
 
-        # Apply structured filters from query_filter JSON
         if qf.get("country"):
             india_cities = ["india", "bengaluru", "bangalore", "pune", "mumbai",
                             "hyderabad", "chennai", "delhi", "gurugram", "gurgaon",
-                            "noida", "kochi", "ahmedabad"]
+                            "noida", "kochi", "ahmedabad", "karnataka", "maharashtra"]
             if qf["country"] == "India":
-                city_conditions = [sa.func.lower(Job.location).like(f"%{c}%") for c in india_cities]
-                section_filters.append(or_(Job.country == "India", *city_conditions))
+                city_conds = [sa.func.lower(Job.location).like(f"%{c}%") for c in india_cities]
+                title_conds = [sa.func.lower(Job.title).like(f"%{c}%") for c in ["india", "bengaluru", "pune", "mumbai", "hyderabad", "delhi"]]
+                section_filters.append(or_(Job.country == "India", *city_conds, *title_conds))
             else:
                 section_filters.append(Job.country == qf["country"])
 
         if qf.get("remote") is True:
-            remote_kw = ["remote", "wfh", "anywhere", "worldwide", "work from home"]
+            remote_kw = ["remote", "wfh", "anywhere", "worldwide", "work from home", "global"]
             remote_conds = [sa.func.lower(Job.location).like(f"%{r}%") for r in remote_kw]
-            section_filters.append(or_(Job.remote == True, *remote_conds))
+            section_filters.append(or_(Job.remote == True, Job.country == "Remote", *remote_conds))
 
         if qf.get("is_internship") is True:
-            section_filters.append(Job.is_internship == True)
+            intern_kw = ["intern", "internship", "trainee", "co-op", "student"]
+            title_conds = [sa.func.lower(Job.title).like(f"%{k}%") for k in intern_kw]
+            desc_conds = [sa.func.lower(Job.description).like(f"%{k}%") for k in ["intern", "internship"]]
+            section_filters.append(or_(Job.is_internship == True, Job.employment_type == "Internship", *title_conds, *desc_conds))
 
         if qf.get("is_fresher") is True:
-            section_filters.append(Job.is_fresher == True)
+            fresher_kw = ["fresher", "graduate", "entry", "associate", "junior", "trainee", "campus", "0-1"]
+            title_conds = [sa.func.lower(Job.title).like(f"%{k}%") for k in fresher_kw]
+            section_filters.append(or_(Job.is_fresher == True, Job.experience_level == "Fresher", *title_conds))
 
         job_query = (
             select(Job)
             .options(joinedload(Job.company))
             .where(*section_filters)
             .order_by(desc(Job.published_at))
-            .limit(limit * 5)  # fetch pool for interleaving
+            .limit(limit * 3)
         )
         job_res = await session.execute(job_query)
-        raw_jobs = job_res.scalars().all()
-        result[key] = _interleave_by_company(raw_jobs, limit=limit)
+        matched_jobs = list(job_res.scalars().all())
 
-    # Always include latest (all active jobs, newest first)
+        # If matched jobs are fewer than limit, supplement with all active jobs (deduped)
+        if len(matched_jobs) < limit:
+            seen_ids = {j.id for j in matched_jobs}
+            for j in all_active_jobs:
+                if j.id not in seen_ids:
+                    matched_jobs.append(j)
+                    seen_ids.add(j.id)
+                if len(matched_jobs) >= limit * 2:
+                    break
+
+        result[key] = _interleave_by_company(matched_jobs, limit=limit)
+
+    # Always include latest
     if "latest" not in result:
-        latest_query = (
-            select(Job)
-            .options(joinedload(Job.company))
-            .where(base_filter)
-            .order_by(desc(Job.published_at))
-            .limit(60)
-        )
-        latest_res = await session.execute(latest_query)
-        result["latest"] = _interleave_by_company(latest_res.scalars().all(), limit=12)
+        result["latest"] = _interleave_by_company(all_active_jobs, limit=12)
 
     # Trending companies
     result["trending_companies"] = await query_trending_companies(session, limit=10)
 
-    # Section config metadata for frontend rendering
+    # Section config metadata for frontend rendering (excluding developer_corner)
     result["sections"] = [
         {
             "key": s.key,
@@ -367,6 +375,7 @@ async def query_home_jobs(session: AsyncSession) -> Dict[str, Any]:
             "limit": s.limit,
         }
         for s in sections
+        if s.key != "developer_corner"
     ]
 
     return result

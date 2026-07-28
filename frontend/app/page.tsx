@@ -1,12 +1,11 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import dynamic from "next/dynamic";
 import type { Route } from "next";
 import CuratedHomeSections from "@/components/curated-home-sections";
 import SearchControls from "@/components/search-controls";
 import TrendingCompanies from "@/components/trending-companies";
-import { getHomeJobs, getMemes } from "@/lib/api";
+import { getHomeJobs } from "@/lib/api";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -73,31 +72,11 @@ const trustedCompanies = [
   "Swiggy", "Zomato", "Zoho", "Vercel", "Figma", "Notion", "Freshworks", "Postman",
 ];
 
-// Dynamically import DeveloperCorner to reduce initial bundle (lazy loading)
-const DeveloperCorner = dynamic(() => import("@/components/developer-corner"), {
-  loading: () => (
-    <div className="mx-auto max-w-7xl px-4 sm:px-6">
-      <div className="h-8 w-64 bg-slate-200 rounded-lg animate-pulse mb-6" />
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="rounded-2xl bg-slate-100 animate-pulse" style={{ aspectRatio: "16/9" }} />
-        ))}
-      </div>
-    </div>
-  ),
-});
-
 export default async function HomePage(props: HomePageProps) {
   await props.searchParams;
 
-  // Parallel server-side fetches
-  const [initialHomeJobs, initialMemes] = await Promise.allSettled([
-    getHomeJobs(),
-    getMemes(),
-  ]);
-
-  const homeJobs = initialHomeJobs.status === "fulfilled" ? initialHomeJobs.value : null;
-  const memes = initialMemes.status === "fulfilled" ? initialMemes.value : [];
+  // Server-side fetch for home jobs
+  const homeJobs = await getHomeJobs().catch(() => null);
   const trendingCompanies = homeJobs?.trending_companies || [];
 
   // Fetch live stats
@@ -123,7 +102,6 @@ export default async function HomePage(props: HomePageProps) {
 
       {/* ━━━━━━━━━━━━ HERO ━━━━━━━━━━━━ */}
       <section className="relative overflow-hidden border-b border-gray-100 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-800 py-20 px-4 sm:px-6">
-        {/* Background grid decoration */}
         <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=%2230%22 height=%2230%22 viewBox=%220 0 30 30%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cpath d=%22M0 0h30v30H0z%22 fill=%22none%22/%3E%3Cpath d=%22M0 30L30 0M30 30L0 0%22 stroke=%22%23ffffff08%22 stroke-width=%221%22/%3E%3C/svg%3E')] opacity-40" />
         <div className="relative mx-auto max-w-4xl text-center space-y-7">
 
@@ -237,7 +215,7 @@ export default async function HomePage(props: HomePageProps) {
             <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">📚 Explore Tech Categories</h2>
             <p className="text-xs text-slate-500 mt-0.5">Find roles across key technology departments</p>
           </div>
-          <Link href="/jobs" className="text-xs font-bold text-blue-600 hover:underline">
+          <Link href={"/jobs" as Route} className="text-xs font-bold text-blue-600 hover:underline">
             View Full Catalog →
           </Link>
         </div>
@@ -258,8 +236,48 @@ export default async function HomePage(props: HomePageProps) {
         </div>
       </section>
 
-      {/* ━━━━━━━━━━━━ DEVELOPER CORNER (near bottom) ━━━━━━━━━━━━ */}
-      <DeveloperCorner initialMemes={memes} />
+      {/* ━━━━━━━━━━━━ CAREER MOTIVATION MEME SPOTLIGHT ━━━━━━━━━━━━ */}
+      <section className="mx-auto max-w-7xl px-4 sm:px-6">
+        <div className="grid items-center gap-10 rounded-3xl bg-gradient-to-r from-amber-50 via-orange-50 to-yellow-100 p-8 shadow-sm border border-orange-200/80 md:grid-cols-2">
+          <div className="space-y-4">
+            <span className="inline-block rounded-full bg-orange-500 px-4 py-1 text-xs font-bold text-white shadow-sm">
+              😂 Career Motivation
+            </span>
+
+            <h2 className="text-3xl sm:text-4xl font-black text-gray-900 tracking-tight leading-tight">
+              Career First... Everything Else Later! 🚀
+            </h2>
+
+            <p className="text-sm text-gray-700 leading-relaxed font-medium">
+              Every successful engineering career starts with one focused decision.
+              Learn continuous skills, apply strategically, and accelerate your growth with JobNova.
+            </p>
+
+            <p className="text-xs text-orange-950/70 italic font-semibold">
+              &quot;A little humor, but a serious reminder—your career deserves your undivided attention.&quot;
+            </p>
+
+            <div className="pt-2">
+              <Link
+                href={"/jobs" as Route}
+                className="inline-block rounded-xl bg-blue-600 px-6 py-3 text-xs font-bold text-white shadow-md hover:bg-blue-700 transition"
+              >
+                Explore Active Roles →
+              </Link>
+            </div>
+          </div>
+
+          <div className="flex justify-center">
+            <Image
+              src="/images/career-meme.png"
+              alt="Career Motivation Meme"
+              width={450}
+              height={450}
+              className="rounded-2xl shadow-xl border border-white/60 object-cover max-h-[380px]"
+            />
+          </div>
+        </div>
+      </section>
 
     </div>
   );

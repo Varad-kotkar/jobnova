@@ -28,9 +28,9 @@ def upgrade() -> None:
     # Populate default slug based on lower name
     op.execute("UPDATE companies SET slug = LOWER(REPLACE(name, ' ', '-')) WHERE slug IS NULL")
     
-    op.alter_column("companies", "slug", nullable=False)
+    with op.batch_alter_table("companies") as batch_op:
+        batch_op.alter_column("slug", nullable=False)
     op.create_index(op.f("ix_companies_slug"), "companies", ["slug"], unique=True)
-    op.create_unique_constraint("uq_companies_slug", "companies", ["slug"])
 
 
 def downgrade() -> None:
