@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, List
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-from pydantic import AnyUrl, BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict
 
 
 class JobResponse(BaseModel):
@@ -19,16 +19,43 @@ class JobResponse(BaseModel):
     remote: bool
     published_at: datetime
 
+    # Enhanced fields (all optional for backward compatibility)
+    country: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    employment_type: Optional[str] = None
+    experience_level: Optional[str] = None
+    is_internship: bool = False
+    is_fresher: bool = False
+    job_category: Optional[str] = None
+    ai_tags: Optional[List[str]] = None
+    salary: Optional[str] = None
+    currency: Optional[str] = None
+    hybrid: bool = False
+    onsite: bool = False
+
+    # Company enrichment
+    company_slug: Optional[str] = None
+    company_logo: Optional[str] = None
+    company_verified: bool = False
+
     model_config = ConfigDict(from_attributes=True)
 
     @classmethod
-    def from_orm_model(cls, job: Any) -> JobResponse:
+    def from_orm_model(cls, job: Any) -> "JobResponse":
         company_str = "Unknown"
+        company_slug = None
+        company_logo = None
+        company_verified = False
+
         if hasattr(job, "company") and job.company:
             if isinstance(job.company, str):
                 company_str = job.company
             elif hasattr(job.company, "name"):
                 company_str = job.company.name
+                company_slug = getattr(job.company, "slug", None)
+                company_logo = getattr(job.company, "logo_url", None)
+                company_verified = getattr(job.company, "verified", False) or False
 
         return cls(
             id=job.id,
@@ -41,6 +68,23 @@ class JobResponse(BaseModel):
             skills=job.skills or [],
             remote=bool(job.remote),
             published_at=job.published_at or datetime.utcnow(),
+            # Enhanced
+            country=getattr(job, "country", None),
+            city=getattr(job, "city", None),
+            state=getattr(job, "state", None),
+            employment_type=getattr(job, "employment_type", None),
+            experience_level=getattr(job, "experience_level", None),
+            is_internship=bool(getattr(job, "is_internship", False)),
+            is_fresher=bool(getattr(job, "is_fresher", False)),
+            job_category=getattr(job, "job_category", None),
+            ai_tags=getattr(job, "ai_tags", None) or [],
+            salary=getattr(job, "salary", None),
+            currency=getattr(job, "currency", None),
+            hybrid=bool(getattr(job, "hybrid", False)),
+            onsite=bool(getattr(job, "onsite", False)),
+            company_slug=company_slug,
+            company_logo=company_logo,
+            company_verified=bool(company_verified),
         )
 
 
@@ -58,9 +102,41 @@ class JobListResponse(BaseModel):
     pagination: PaginationMeta
 
 
+class TrendingCompany(BaseModel):
+    id: str
+    name: str
+    slug: str
+    logo_url: Optional[str] = None
+    industry: Optional[str] = None
+    size: Optional[str] = None
+    verified: bool = False
+    remote_policy: Optional[str] = None
+    job_count: int
+
+
+class SectionMeta(BaseModel):
+    key: str
+    title: str
+    subtitle: Optional[str] = None
+    icon: Optional[str] = None
+    enabled: bool
+    order: int
+    view_all_href: Optional[str] = None
+    view_all_label: Optional[str] = None
+    limit: int
+
+
 class HomeJobsResponse(BaseModel):
-    india_jobs: List[JobResponse]
-    remote_jobs: List[JobResponse]
-    internships: List[JobResponse]
-    freshers: List[JobResponse]
-    latest: List[JobResponse]
+    # Named section job lists (backward compatible)
+    india_jobs: List[JobResponse] = []
+    remote_jobs: List[JobResponse] = []
+    internships: List[JobResponse] = []
+    freshers: List[JobResponse] = []
+    latest: List[JobResponse] = []
+
+    # Extended sections (DB-driven, arbitrary keys)
+    sections: List[SectionMeta] = []
+    trending_companies: List[TrendingCompany] = []
+
+    # Dynamic section data keyed by section.key
+    section_data: Dict[str, List[JobResponse]] = {}

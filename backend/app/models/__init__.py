@@ -15,6 +15,8 @@ from .saved_job import SavedJob
 from .recruiter import RecruiterProfile
 from .saved_search import SavedSearch
 from .audit_log import AuditLog
+from .homepage_section import HomepageSection
+from .meme import Meme
 
 __all__ = [
     "Base",
@@ -34,4 +36,6 @@ __all__ = [
     "RecruiterProfile",
     "SavedSearch",
     "AuditLog",
+    "HomepageSection",
+    "Meme",
 ]

@@ -1,3 +1,4 @@
+from typing import Any
 from fastapi import APIRouter
 
 from .routers.admin import router as admin_router
@@ -14,6 +15,8 @@ from .routers.health import router as health_router
 from .routers.ingestion import router as ingestion_router
 from .routers.interview_coach import router as interview_coach_router
 from .routers.jobs import router as jobs_router
+from .routers.memes import router as memes_router
+from .routers.homepage_sections import router as homepage_sections_router
 from .routers.notifications import router as notifications_router
 from .routers.recruiter import router as recruiter_router
 from .routers.resumes import router as resumes_router
@@ -43,6 +46,8 @@ ALL_ROUTERS = [
     career_coach_router,
     ingestion_router,
     stats_router,
+    memes_router,
+    homepage_sections_router,
 ]
 
 

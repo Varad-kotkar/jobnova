@@ -10,10 +10,21 @@ from ...models.job_listing import JobListing
 logger = logging.getLogger(__name__)
 
 DEFAULT_BOARDS = [
+    # Original boards
     "gitlab", "stripe", "airtable", "datadog", "figma", "notion",
     "hashicorp", "doordash", "discord", "brex", "affirm", "gusto",
-    "rubrik", "cohere", "ramp", "elastic", "mongodb", "twosigma"
+    "rubrik", "cohere", "ramp", "elastic", "mongodb", "twosigma",
+    # Expanded boards — India-hiring and global remote tech companies
+    "anthropic", "openai", "scale-ai", "mistral", "deepmind",
+    "databricks", "snowflake", "confluent", "dbt-labs", "airbyte",
+    "vercel", "planetscale", "supabase", "neon", "cloudflare",
+    "digitalocean", "twilio", "sendgrid", "segment", "mixpanel",
+    "amplitude", "grafana", "pagerduty", "atlassian", "hubspot",
+    "zendesk", "intercom", "freshworks", "chargebee", "razorpay",
+    "zepto", "swiggy", "dunzo", "browserstack", "postman",
+    "moengage", "clevertap", "limelight-networks", "sarvam",
 ]
+
 
 
 def _normalize_location(location_data: Any) -> str:

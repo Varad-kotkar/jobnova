@@ -7,7 +7,7 @@ from sqlalchemy.orm import joinedload
 
 from ..database.session import get_session
 from ..models.job import Job
-from ..schemas.job import HomeJobsResponse, JobListResponse, JobResponse, PaginationMeta
+from ..schemas.job import HomeJobsResponse, JobListResponse, JobResponse, PaginationMeta, TrendingCompany, SectionMeta
 from ..services.job_query import query_jobs, query_home_jobs
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
@@ -23,9 +23,22 @@ async def list_jobs(
     location: Optional[str] = Query(None, min_length=1),
     remote: Optional[bool] = Query(None),
     sort_by: str = Query("newest", pattern="^(newest|oldest|relevance)$"),
+    # New structured filters (additive, backward compatible)
+    employment_type: Optional[str] = Query(None),
+    experience_level: Optional[str] = Query(None),
+    is_internship: Optional[bool] = Query(None),
+    is_fresher: Optional[bool] = Query(None),
+    country: Optional[str] = Query(None),
+    city: Optional[str] = Query(None),
+    state: Optional[str] = Query(None),
+    category: Optional[str] = Query(None),
     session: AsyncSession = Depends(get_session),
 ) -> JobListResponse:
-    cache_key = f"jobs:list:{page}:{page_size}:{keyword}:{company}:{location}:{remote}:{sort_by}"
+    cache_key = (
+        f"jobs:list:{page}:{page_size}:{keyword}:{company}:{location}:{remote}:{sort_by}"
+        f":{employment_type}:{experience_level}:{is_internship}:{is_fresher}"
+        f":{country}:{city}:{state}:{category}"
+    )
     from ..core.cache import CacheManager
     cached_res = await CacheManager.get(cache_key)
     if cached_res:
@@ -40,6 +53,14 @@ async def list_jobs(
         location=location,
         remote=remote,
         sort_by=sort_by,
+        employment_type=employment_type,
+        experience_level=experience_level,
+        is_internship=is_internship,
+        is_fresher=is_fresher,
+        country=country,
+        city=city,
+        state=state,
+        category=category,
     )
 
     job_responses = [JobResponse.from_orm_model(job) for job in jobs]
@@ -53,7 +74,7 @@ async def list_jobs(
 async def get_home_jobs(
     session: AsyncSession = Depends(get_session),
 ) -> HomeJobsResponse:
-    cache_key = "jobs:home:curated"
+    cache_key = "jobs:home:curated:v2"
     from ..core.cache import CacheManager
     cached_res = await CacheManager.get(cache_key)
     if cached_res:
@@ -61,12 +82,26 @@ async def get_home_jobs(
 
     home_data = await query_home_jobs(session)
 
+    def _to_job_responses(key: str) -> list:
+        return [JobResponse.from_orm_model(j) for j in home_data.get(key, [])]
+
+    section_data: dict = {}
+    for section_meta in home_data.get("sections", []):
+        key = section_meta["key"]
+        if key in home_data and key not in ("developer_corner", "trending_companies"):
+            section_data[key] = _to_job_responses(key)
+
     res = HomeJobsResponse(
-        india_jobs=[JobResponse.from_orm_model(j) for j in home_data["india_jobs"]],
-        remote_jobs=[JobResponse.from_orm_model(j) for j in home_data["remote_jobs"]],
-        internships=[JobResponse.from_orm_model(j) for j in home_data["internships"]],
-        freshers=[JobResponse.from_orm_model(j) for j in home_data["freshers"]],
-        latest=[JobResponse.from_orm_model(j) for j in home_data["latest"]],
+        # Backward-compatible named fields
+        india_jobs=_to_job_responses("india_jobs"),
+        remote_jobs=_to_job_responses("remote_jobs"),
+        internships=_to_job_responses("internships"),
+        freshers=_to_job_responses("freshers"),
+        latest=_to_job_responses("latest"),
+        # Extended
+        sections=[SectionMeta(**s) for s in home_data.get("sections", [])],
+        trending_companies=[TrendingCompany(**c) for c in home_data.get("trending_companies", [])],
+        section_data=section_data,
     )
     await CacheManager.set(cache_key, res.model_dump(), ttl_seconds=300)
     return res
@@ -79,12 +114,10 @@ async def get_job_by_id_or_slug(
 ) -> JobResponse:
     clean_identifier = id_or_slug.lower().strip()
 
-    # 1. Primary lookup by exact slug
     stmt = select(Job).options(joinedload(Job.company)).where(Job.slug == clean_identifier)
     result = await session.execute(stmt)
     job = result.scalars().first()
 
-    # 2. Fallback lookup by exact id
     if not job:
         from sqlalchemy import or_
         stmt_id = select(Job).options(joinedload(Job.company)).where(
@@ -93,7 +126,6 @@ async def get_job_by_id_or_slug(
         result_id = await session.execute(stmt_id)
         job = result_id.scalars().first()
 
-    # 3. Fallback composite lookup for URLs formatted as /jobs/{slug}-{uuid}
     if not job and "-" in clean_identifier:
         parts = clean_identifier.split("-")
         potential_uuid = parts[-1]
@@ -105,7 +137,6 @@ async def get_job_by_id_or_slug(
             )
             result_comp = await session.execute(stmt_composite)
             job = result_comp.scalars().first()
-
 
     if not job:
         raise HTTPException(

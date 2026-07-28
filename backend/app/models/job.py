@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 # pylint: disable=E1102
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String, Text, UniqueConstraint, JSON
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String, Text, UniqueConstraint, JSON, Float
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 
@@ -32,6 +32,18 @@ class Job(Base):
     featured = Column(Boolean, nullable=False, default=False)
     published_at = Column(DateTime(timezone=True), nullable=False, index=True)
     created_at = Column(DateTime(timezone=True), server_default=sa.func.now(), nullable=False)
+
+    # Enhanced classification fields
+    state = Column(String(100), nullable=True, index=True)
+    hybrid = Column(Boolean, nullable=False, default=False, server_default=sa.text("false"))
+    onsite = Column(Boolean, nullable=False, default=False, server_default=sa.text("false"))
+    salary = Column(String(200), nullable=True)
+    currency = Column(String(10), nullable=True)
+    industry = Column(String(100), nullable=True)
+    company_size = Column(String(100), nullable=True)
+    job_category = Column(String(100), nullable=True, index=True)
+    ai_tags = Column(JSON, nullable=True, default=list)
+    duplicate_hash = Column(String(64), nullable=True, unique=True, index=True)
     updated_at = Column(DateTime(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now(), nullable=False)
 
     source = relationship("Source", back_populates="jobs", lazy="joined")

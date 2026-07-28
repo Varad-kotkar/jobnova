@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import hashlib
 import logging
 import re
 from typing import Iterable, List, Optional
@@ -18,6 +19,31 @@ logger = logging.getLogger(__name__)
 
 _SLUG_RE = re.compile(r"[^a-z0-9]+")
 
+# Salary extraction patterns
+_SALARY_PATTERNS = [
+    re.compile(r"₹\s*(\d[\d,\.]+)\s*(?:[-–]\s*₹?\s*(\d[\d,\.]+))?\s*(lpa|l\.p\.a|lac|lakh|month|yr|year|p\.a)?", re.I),
+    re.compile(r"\$\s*(\d[\d,\.]+)\s*(?:[kK])?\s*(?:[-–]\s*\$?\s*(\d[\d,\.]+)\s*(?:[kK])?)?\s*(\/yr|\/year|\/month|annual|yearly)?", re.I),
+]
+
+SPAM_KEYWORDS = [
+    "training", "course", "bootcamp", "academy", "registration fee", "pay to apply",
+    "course enrollment", "placement training", "become job ready", "demo class",
+    "online course", "paid course", "workshop", "seminar", "masterclass"
+]
+
+TECH_WHITELIST_KEYWORDS = [
+    "python", "java", "data analyst", "data scientist", "ml engineer", "ai engineer",
+    "backend", "frontend", "full stack", "fullstack", "devops", "cloud", "cybersecurity",
+    "qa", "software engineer", "data analytics", "machine learning", "software developer",
+    "data engineering", "data engineer", "ai developer", "system engineer", "site reliability"
+]
+
+NON_TECH_REJECT_KEYWORDS = [
+    "sales", "marketing", "hr", "human resources", "finance", "teacher", "nurse",
+    "driver", "civil", "mechanical", "accountant", "account executive", "customer support",
+    "business development", "recruiter", "store manager", "receptionist", "telecaller"
+]
+
 
 def _generate_slug(company: str, title: str, location: str) -> str:
     combined = f"{company.strip()} {title.strip()} {location.strip()}".lower()
@@ -25,8 +51,25 @@ def _generate_slug(company: str, title: str, location: str) -> str:
     return slug[:1024]
 
 
+def _compute_duplicate_hash(company: str, title: str, location: str) -> str:
+    """SHA-256 of normalized company:title:location for hard deduplication."""
+    raw = f"{company.strip().lower()}:{title.strip().lower()}:{location.strip().lower()}"
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
 def _normalize_apply_url(raw_url: str) -> str:
     return raw_url.strip()
+
+
+def _extract_salary(text: str) -> tuple[Optional[str], Optional[str]]:
+    """Extract salary string and currency from job text."""
+    for pattern in _SALARY_PATTERNS:
+        m = pattern.search(text)
+        if m:
+            full = m.group(0).strip()
+            currency = "INR" if "₹" in full else "USD"
+            return full[:200], currency
+    return None, None
 
 
 @dataclass
@@ -58,27 +101,6 @@ async def ingest_job_listings(
     return await _process_listings(session, listings, source_name)
 
 
-SPAM_KEYWORDS = [
-    "training", "course", "bootcamp", "academy", "registration fee", "pay to apply",
-    "course enrollment", "placement training", "become job ready", "demo class",
-    "online course", "paid course", "workshop", "seminar", "masterclass"
-]
-
-
-TECH_WHITELIST_KEYWORDS = [
-    "python", "java", "data analyst", "data scientist", "ml engineer", "ai engineer",
-    "backend", "frontend", "full stack", "fullstack", "devops", "cloud", "cybersecurity",
-    "qa", "software engineer", "data analytics", "machine learning", "software developer",
-    "data engineering", "data engineer", "ai developer", "system engineer", "site reliability"
-]
-
-NON_TECH_REJECT_KEYWORDS = [
-    "sales", "marketing", "hr", "human resources", "finance", "teacher", "nurse",
-    "driver", "civil", "mechanical", "accountant", "account executive", "customer support",
-    "business development", "recruiter", "store manager", "receptionist", "telecaller"
-]
-
-
 def _is_valid_quality_job(listing: JobListing) -> bool:
     if not listing.company or not listing.title or not listing.apply_url:
         return False
@@ -92,12 +114,10 @@ def _is_valid_quality_job(listing: JobListing) -> bool:
         if kw in content_text:
             return False
 
-    # Reject non-tech roles
     for reject_kw in NON_TECH_REJECT_KEYWORDS:
         if reject_kw in title_lower:
             return False
 
-    # Must match tech whitelist
     return any(tech_kw in content_text for tech_kw in TECH_WHITELIST_KEYWORDS)
 
 
@@ -107,17 +127,14 @@ def _meets_telegram_criteria(listing: JobListing) -> bool:
     desc_lower = (listing.description or "").lower()
     text_combined = f"{title_lower} {desc_lower}"
 
-    # Location requirement: India (Pune, Bengaluru/Bangalore, or Remote in India)
-    location_match = any(loc in loc_lower for loc in ["pune", "bengaluru", "bangalore", "india"]) or (listing.remote and ("india" in loc_lower or "india" in text_combined))
+    location_match = any(loc in loc_lower for loc in ["pune", "bengaluru", "bangalore", "india"]) or (
+        listing.remote and ("india" in loc_lower or "india" in text_combined)
+    )
     if not location_match:
         return False
 
-    # Category requirement: Python, Data Analytics, Data Science, AI, Machine Learning, Backend
     tg_category_match = any(kw in text_combined for kw in ["python", "data analytics", "data science", "ai", "machine learning", "backend"])
-    if not tg_category_match:
-        return False
-
-    return True
+    return tg_category_match
 
 
 async def _process_listings(
@@ -128,7 +145,7 @@ async def _process_listings(
     source = await _get_or_create_source(session, source_name)
     stats = IngestionStats()
     seen_urls: set[str] = set()
-    seen_slugs: set[str] = set()
+    seen_hashes: set[str] = set()
 
     for listing in listings:
         try:
@@ -138,24 +155,32 @@ async def _process_listings(
 
             apply_url = _normalize_apply_url(listing.apply_url)
             slug = _generate_slug(listing.company, listing.title, listing.location)
+            dup_hash = _compute_duplicate_hash(listing.company, listing.title, listing.location)
 
-            if apply_url in seen_urls or slug in seen_slugs:
+            # In-batch deduplication
+            if apply_url in seen_urls or dup_hash in seen_hashes:
                 stats.duplicates += 1
-                logger.debug("Duplicate listing skipped in batch", extra={"apply_url": apply_url, "slug": slug})
+                logger.debug("Duplicate listing skipped in batch", extra={"apply_url": apply_url})
                 continue
 
             seen_urls.add(apply_url)
-            seen_slugs.add(slug)
+            seen_hashes.add(dup_hash)
 
             company = await _get_or_create_company(session, listing.company)
 
-            # Check if job already exists in database (UPSERT logic)
-            query = select(Job).where((Job.apply_url == apply_url) | (Job.slug == slug))
-            result = await session.execute(query)
+            # DB-level deduplication via duplicate_hash (hard constraint)
+            dup_query = select(Job).where(
+                (Job.duplicate_hash == dup_hash) | (Job.apply_url == apply_url)
+            )
+            result = await session.execute(dup_query)
             existing_job = result.scalars().first()
 
+            # Extract salary from description
+            salary_text, currency = _extract_salary(
+                f"{listing.title} {listing.description or ''}"
+            )
+
             if existing_job:
-                # Update existing job fields
                 existing_job.source_id = source.id
                 existing_job.company_id = company.id
                 existing_job.title = listing.title
@@ -164,11 +189,15 @@ async def _process_listings(
                 existing_job.skills = listing.skills
                 existing_job.remote = listing.remote
                 existing_job.published_at = listing.published_at
-                
+                existing_job.duplicate_hash = dup_hash
+                if salary_text:
+                    existing_job.salary = salary_text
+                    existing_job.currency = currency
+
                 target_job = existing_job
                 stats.updated += 1
                 stats.jobs.append(existing_job)
-                logger.info("Updated existing job record", extra={"job_id": existing_job.id, "apply_url": apply_url})
+                logger.info("Updated existing job record", extra={"job_id": existing_job.id})
             else:
                 new_job = Job(
                     source_id=source.id,
@@ -181,6 +210,9 @@ async def _process_listings(
                     skills=listing.skills,
                     remote=listing.remote,
                     published_at=listing.published_at,
+                    duplicate_hash=dup_hash,
+                    salary=salary_text,
+                    currency=currency,
                 )
                 session.add(new_job)
                 await session.flush()
@@ -188,9 +220,8 @@ async def _process_listings(
 
                 stats.inserted += 1
                 stats.jobs.append(new_job)
-                logger.info("Inserted new job record", extra={"job_id": new_job.id, "apply_url": apply_url})
+                logger.info("Inserted new job record", extra={"job_id": new_job.id})
 
-                # Check Telegram criteria before posting
                 if _meets_telegram_criteria(listing):
                     try:
                         import asyncio
@@ -210,7 +241,6 @@ async def _process_listings(
             from .category_classifier import CategoryClassifier
             await CategoryClassifier.classify_and_assign(session, target_job)
 
-
         except Exception as exc:
             err_msg = f"Failed to ingest listing '{getattr(listing, 'title', 'Unknown')}': {exc}"
             logger.exception("Error during job listing ingestion", extra={"source": source_name})
@@ -227,6 +257,7 @@ async def _process_listings(
     if stats.inserted > 0 or stats.updated > 0:
         from ..core.cache import CacheManager
         await CacheManager.delete_pattern("jobs:list:")
+        await CacheManager.delete_pattern("jobs:home:")
 
     return stats
 
@@ -263,8 +294,8 @@ async def _get_or_create_company(session: AsyncSession, name: str) -> Company:
     return company
 
 
-async def purge_expired_jobs(session: Optional[AsyncSession] = None, max_age_days: int = 3) -> int:
-    """Deactivates active job listings that are older than max_age_days."""
+async def purge_expired_jobs(session: Optional[AsyncSession] = None, max_age_days: int = 30) -> int:
+    """Deactivates active job listings older than max_age_days (default 30 days)."""
     from datetime import datetime, timezone, timedelta
     cutoff_date = datetime.now(timezone.utc) - timedelta(days=max_age_days)
 
@@ -286,4 +317,3 @@ async def purge_expired_jobs(session: Optional[AsyncSession] = None, max_age_day
         async with sessionmaker() as session:
             return await _purge(session)
     return await _purge(session)
-
