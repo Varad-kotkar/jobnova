@@ -211,6 +211,14 @@ async def _process_listings(
                     existing_job.salary = salary_text
                     existing_job.currency = currency
 
+                # Explicitly re-evaluate 3-day freshness on record updates
+                if existing_job.published_at:
+                    from datetime import datetime, timezone, timedelta
+                    pub_dt = existing_job.published_at
+                    if pub_dt.tzinfo is None:
+                        pub_dt = pub_dt.replace(tzinfo=timezone.utc)
+                    existing_job.is_active = pub_dt >= (datetime.now(timezone.utc) - timedelta(days=3))
+
                 target_job = existing_job
                 stats.updated += 1
                 stats.jobs.append(existing_job)
