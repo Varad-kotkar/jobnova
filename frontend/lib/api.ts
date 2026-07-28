@@ -12,11 +12,7 @@ export function getApiUrl(): string {
     return envUrl.replace(/\/$/, "");
   }
 
-  if (typeof window === "undefined") {
-    return "http://localhost:8000";
-  }
-
-  return "http://localhost:8000";
+  return "https://jobnova-w5xp.onrender.com";
 }
 
 /**
