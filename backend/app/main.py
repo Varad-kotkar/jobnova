@@ -74,11 +74,8 @@ async def _initial_check_and_scheduler() -> None:
             result = await session.execute(select(func.count()).select_from(Job))
             job_count = result.scalar_one()
 
-        if job_count == 0:
-            logger.info("Jobs table is empty on startup. Triggering initial automatic ingestion...")
-            await _run_scheduled_ingestion()
-        else:
-            logger.info("Jobs table contains %d listings on startup.", job_count)
+        logger.info("Jobs table contains %d listings on startup. Launching initial background ingestion run...", job_count)
+        asyncio.create_task(_run_scheduled_ingestion())
     except Exception as exc:
         logger.exception("Initial ingestion check failed", extra={"error": str(exc)})
 
@@ -193,8 +190,12 @@ def create_application() -> FastAPI:
 
         return response
 
-    @app.get("/", status_code=status.HTTP_200_OK, tags=["root"])
-    async def root():
+    from fastapi import Response
+
+    @app.api_route("/", methods=["GET", "HEAD"], status_code=status.HTTP_200_OK, tags=["root"], operation_id="root_endpoint")
+    async def root(request: Request):
+        if request.method == "HEAD":
+            return Response(status_code=status.HTTP_200_OK)
         return {
             "status": "ok",
             "app_name": settings.app_name,

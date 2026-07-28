@@ -15,10 +15,12 @@ def clean_description_text(raw_text: Optional[str]) -> str:
         return ""
     decoded = html.unescape(html.unescape(raw_text))
     decoded = re.sub(r'<br\s*/?>', '\n', decoded, flags=re.IGNORECASE)
-    decoded = re.sub(r'</?(p|div|li|tr|h[1-6])\b[^>]*>', '\n', decoded, flags=re.IGNORECASE)
+    decoded = re.sub(r'<li\b[^>]*>', '\n• ', decoded, flags=re.IGNORECASE)
+    decoded = re.sub(r'</?(p|div|ul|ol|tr|h[1-6])\b[^>]*>', '\n', decoded, flags=re.IGNORECASE)
     clean = re.sub(r'<[^>]+>', ' ', decoded)
     lines = [line.strip() for line in clean.split('\n') if line.strip()]
-    return '\n\n'.join(lines) if lines else clean.strip()
+    res = '\n\n'.join(lines) if lines else clean.strip()
+    return res[:15000]
 
 
 class JobResponse(BaseModel):

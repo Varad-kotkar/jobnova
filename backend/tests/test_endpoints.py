@@ -16,6 +16,13 @@ async def test_root_endpoint():
 
 
 @pytest.mark.anyio
+async def test_root_head_endpoint():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.head("/")
+        assert response.status_code == status.HTTP_200_OK
+
+
+@pytest.mark.anyio
 async def test_openapi_schema_endpoint():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.get("/openapi.json")
@@ -24,6 +31,7 @@ async def test_openapi_schema_endpoint():
         assert "openapi" in schema or "swagger" in schema
         assert "/api/memes" in schema["paths"]
         assert "/api/homepage/sections" in schema["paths"]
+        assert "/api/ingestion/status" in schema["paths"]
         assert "/" in schema["paths"]
 
 
@@ -56,3 +64,13 @@ async def test_homepage_sections_public_endpoint(async_session):
         data = response.json()
         assert data["success"] is True
         assert isinstance(data["data"], list)
+
+
+@pytest.mark.anyio
+async def test_ingestion_status_endpoint(async_session):
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/ingestion/status")
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["success"] is True
+        assert "data" in data
