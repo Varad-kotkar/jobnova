@@ -35,6 +35,8 @@ async def _get_google_public_certs() -> Dict[str, str]:
     return _certs_cache
 
 
+from cryptography.x509 import load_pem_x509_certificate
+
 async def verify_firebase_id_token(token: str) -> Optional[Dict[str, Any]]:
     """Verifies a Firebase ID Token using Google public keys.
 
@@ -43,7 +45,7 @@ async def verify_firebase_id_token(token: str) -> Optional[Dict[str, Any]]:
     if not token or not isinstance(token, str):
         return None
 
-    project_id = os.getenv("FIREBASE_PROJECT_ID", os.getenv("NEXT_PUBLIC_FIREBASE_PROJECT_ID", ""))
+    project_id = os.getenv("FIREBASE_PROJECT_ID", os.getenv("NEXT_PUBLIC_FIREBASE_PROJECT_ID", "")).strip()
 
     try:
         unverified_header = jwt.get_unverified_header(token)
@@ -54,14 +56,19 @@ async def verify_firebase_id_token(token: str) -> Optional[Dict[str, Any]]:
             certs = await _get_google_public_certs()
             cert_pem = certs.get(kid)
             if cert_pem:
-                public_key = jwt.algorithms.RSAAlgorithm.from_jwk(cert_pem) if cert_pem.startswith("{") else cert_pem
+                cert_obj = load_pem_x509_certificate(cert_pem.encode("utf-8"))
+                public_key = cert_obj.public_key()
+
+                unverified_claims = jwt.decode(token, options={"verify_signature": False})
+                target_project_id = project_id or unverified_claims.get("aud")
+
                 kwargs = {
                     "algorithms": ["RS256"],
-                    "options": {"verify_aud": bool(project_id)},
+                    "options": {"verify_aud": True},
                 }
-                if project_id:
-                    kwargs["audience"] = project_id
-                    kwargs["issuer"] = f"https://securetoken.google.com/{project_id}"
+                if target_project_id:
+                    kwargs["audience"] = target_project_id
+                    kwargs["issuer"] = f"https://securetoken.google.com/{target_project_id}"
 
                 payload = jwt.decode(token, public_key, **kwargs)
                 return {
@@ -73,7 +80,7 @@ async def verify_firebase_id_token(token: str) -> Optional[Dict[str, Any]]:
                     "firebase": payload,
                 }
     except Exception as exc:
-        logger.debug("Firebase RS256 token verification skipped or failed: %s", exc)
+        logger.warning("Firebase RS256 token verification failed: %s", exc)
 
     # Fallback to local HMAC JWT token decoding for unit tests and local dev
     from .security import decode_access_token

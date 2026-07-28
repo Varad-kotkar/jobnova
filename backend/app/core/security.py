@@ -125,20 +125,32 @@ async def get_current_user(
                 fb_email = fb_info.get("email", "").strip().lower()
                 fb_uid = fb_info.get("uid")
 
-                if fb_email:
+                # Primary lookup by Firebase UID
+                if fb_uid:
+                    stmt = select(User).where(User.id == str(fb_uid))
+                    res = await session.execute(stmt)
+                    user = res.scalars().first()
+
+                # Fallback lookup by email
+                if not user and fb_email:
                     stmt = select(User).where(User.email == fb_email)
                     res = await session.execute(stmt)
                     user = res.scalars().first()
 
                 if not user and fb_email:
                     # Auto-provision user account for Firebase Google SSO
+                    import uuid
                     from ..models.user_profile import UserProfile
+                    new_user_id = str(fb_uid) if fb_uid and len(str(fb_uid)) <= 36 else str(uuid.uuid4())
                     new_user = User(
-                        id=fb_uid if len(str(fb_uid)) <= 36 else None,
+                        id=new_user_id,
                         email=fb_email,
                         hashed_password=None,
                         full_name=fb_info.get("name") or fb_email.split("@")[0],
+                        avatar_url=fb_info.get("picture"),
                         role="candidate",
+                        is_active=True,
+                        is_verified=fb_info.get("email_verified", True),
                     )
                     session.add(new_user)
                     await session.flush()
@@ -154,8 +166,19 @@ async def get_current_user(
                     session.add(new_profile)
                     await session.commit()
                     user = new_user
+                elif user:
+                    # Update safe non-destructive fields for returning users
+                    updated = False
+                    if fb_info.get("picture") and user.avatar_url != fb_info["picture"]:
+                        user.avatar_url = fb_info["picture"]
+                        updated = True
+                    if not user.is_verified and fb_info.get("email_verified"):
+                        user.is_verified = True
+                        updated = True
+                    if updated:
+                        await session.commit()
         except Exception as exc:
-            logger.debug("Firebase token verification fallback failed: %s", exc)
+            logger.warning("Firebase token verification or user provisioning failed: %s", exc, exc_info=True)
 
     if not user or not user.is_active:
         raise HTTPException(
