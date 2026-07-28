@@ -105,16 +105,22 @@ class PluginOrchestrator:
             if result.error_message:
                 all_errors.append(f"[{plugin.plugin_name}] {result.error_message}")
 
+        logger.info("=== INGESTION ORCHESTRATION SUMMARY ===")
+        for s in summaries:
+            logger.info(
+                "  [%-15s] Fetched: %-4d | Inserted: %-4d | Updated: %-4d | Duplicates: %-4d | Status: %s%s",
+                s.plugin_name,
+                s.jobs_fetched,
+                s.jobs_inserted,
+                s.jobs_updated,
+                s.jobs_duplicates,
+                "SUCCESS" if s.success else "FAILED",
+                f" | Error: {s.error_message}" if s.error_message else "",
+            )
+
         logger.info(
-            "Orchestration summary",
-            extra={
-                "plugins": len(summaries),
-                "total_jobs_fetched": total_jobs_fetched,
-                "total_inserted": total_inserted,
-                "total_updated": total_updated,
-                "total_duplicates": total_duplicates,
-                "total_errors": len(all_errors),
-            },
+            "TOTALS: Plugins: %d | Fetched: %d | Inserted: %d | Updated: %d | Duplicates: %d | Errors: %d",
+            len(summaries), total_jobs_fetched, total_inserted, total_updated, total_duplicates, len(all_errors),
         )
 
         return OrchestratorSummary(
