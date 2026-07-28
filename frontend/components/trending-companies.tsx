@@ -10,18 +10,18 @@ interface TrendingCompaniesProps {
 }
 
 function CompanyLogo({ name, logoUrl }: { name: string; logoUrl?: string }) {
-  const cleanDomain = name.toLowerCase().replace(/[^a-z0-9]/g, "");
-  const [src, setSrc] = useState(
-    logoUrl || `https://logo.clearbit.com/${cleanDomain}.com`
-  );
-  const [attempt, setAttempt] = useState(0);
+  const encodedName = encodeURIComponent(name || "Company");
+  const avatarFallback = `https://ui-avatars.com/api/?name=${encodedName}&background=0284c7&color=ffffff&bold=true`;
+  const initialSrc = logoUrl && logoUrl.trim().length > 0 ? logoUrl : avatarFallback;
+
+  const [src, setSrc] = useState(initialSrc);
+  const [hasError, setHasError] = useState(false);
 
   const handleError = () => {
-    if (attempt === 0) {
-      setSrc(`https://icon.horse/icon/${cleanDomain}.com`);
-      setAttempt(1);
+    if (src !== avatarFallback) {
+      setSrc(avatarFallback);
     } else {
-      setAttempt(2);
+      setHasError(true);
     }
   };
 
@@ -32,7 +32,7 @@ function CompanyLogo({ name, logoUrl }: { name: string; logoUrl?: string }) {
     .toUpperCase()
     .slice(0, 2);
 
-  if (attempt >= 2) {
+  if (hasError) {
     return (
       <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-bold text-base flex items-center justify-center shadow-md shadow-blue-500/15 shrink-0">
         {initials}

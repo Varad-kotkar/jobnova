@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import func, select
 
-from .api import create_api_router, register_api_routers
+from .api import register_api_routers
 from .config.settings import database_config, settings
 from .core.orchestrator import PluginOrchestrator
 from .database.connection import connect_to_database, disconnect_from_database
@@ -236,12 +236,18 @@ def create_application() -> FastAPI:
     # Register API routers
     register_api_routers(app)
 
-    # Log every registered route at startup
-    for route in app.routes:
-        path = getattr(route, "path", None)
-        if path:
-            methods = getattr(route, "methods", None)
-            logger.info("%s %s", methods, path)
+    # Log every registered route recursively at startup
+    def _log_routes_recursively(routes_list):
+        for r in routes_list:
+            if hasattr(r, "original_router"):
+                _log_routes_recursively(r.original_router.routes)
+            elif hasattr(r, "routes"):
+                _log_routes_recursively(r.routes)
+            elif hasattr(r, "path"):
+                methods = getattr(r, "methods", None)
+                logger.info("%s %s", methods, r.path)
+
+    _log_routes_recursively(app.routes)
 
     return app
 

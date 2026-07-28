@@ -41,27 +41,23 @@ export interface JobCardProps {
 }
 
 export function CompanyLogo({ name, logoUrl }: { name: string; logoUrl?: string }) {
-  const cleanDomain = name ? name.toLowerCase().replace(/[^a-z0-9]/g, "") : "jobnova";
-  const primaryLogo = logoUrl && logoUrl.trim().length > 0 ? logoUrl : `https://logo.clearbit.com/${cleanDomain}.com`;
-  
-  const [src, setSrc] = useState(primaryLogo);
-  const [attempt, setAttempt] = useState(0);
+  const encodedName = encodeURIComponent(name || "Company");
+  const avatarFallback = `https://ui-avatars.com/api/?name=${encodedName}&background=0284c7&color=ffffff&bold=true`;
+  const initialSrc = logoUrl && logoUrl.trim().length > 0 ? logoUrl : avatarFallback;
+
+  const [src, setSrc] = useState(initialSrc);
+  const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
-    const freshPrimary = logoUrl && logoUrl.trim().length > 0 ? logoUrl : `https://logo.clearbit.com/${cleanDomain}.com`;
-    setSrc(freshPrimary);
-    setAttempt(0);
-  }, [logoUrl, name]);
+    setSrc(logoUrl && logoUrl.trim().length > 0 ? logoUrl : avatarFallback);
+    setHasError(false);
+  }, [logoUrl, name, avatarFallback]);
 
   const handleError = () => {
-    if (attempt === 0) {
-      setSrc(`https://logo.clearbit.com/${cleanDomain}.com`);
-      setAttempt(1);
-    } else if (attempt === 1) {
-      setSrc(`https://icon.horse/icon/${cleanDomain}.com`);
-      setAttempt(2);
+    if (src !== avatarFallback) {
+      setSrc(avatarFallback);
     } else {
-      setAttempt(3);
+      setHasError(true);
     }
   };
 
@@ -74,21 +70,21 @@ export function CompanyLogo({ name, logoUrl }: { name: string; logoUrl?: string 
         .slice(0, 2)
     : "JN";
 
-  if (attempt < 3 && src) {
+  if (hasError) {
     return (
-      <img
-        src={src}
-        alt={`${name} logo`}
-        className="w-12 h-12 rounded-xl object-contain bg-white p-1 border border-slate-200/80 shadow-sm"
-        onError={handleError}
-      />
+      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-bold text-base flex items-center justify-center shadow-md shadow-blue-500/10">
+        {initials}
+      </div>
     );
   }
 
   return (
-    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-bold text-base flex items-center justify-center shadow-md shadow-blue-500/10">
-      {initials}
-    </div>
+    <img
+      src={src}
+      alt={`${name} logo`}
+      className="w-12 h-12 rounded-xl object-contain bg-white p-1 border border-slate-200/80 shadow-sm"
+      onError={handleError}
+    />
   );
 }
 

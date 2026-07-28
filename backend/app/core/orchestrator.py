@@ -137,43 +137,43 @@ class PluginOrchestrator:
         error_message: Optional[str] = None
 
         async with get_async_sessionmaker()() as session:
-            async with session.begin():
-                plugin_run = PluginRun(
-                    plugin_name=plugin.plugin_name,
-                    started_at=started_at,
-                    status="running",
-                    jobs_fetched=0,
-                    jobs_inserted=0,
-                )
-                session.add(plugin_run)
-                await session.flush()
+            plugin_run = PluginRun(
+                plugin_name=plugin.plugin_name,
+                started_at=started_at,
+                status="running",
+                jobs_fetched=0,
+                jobs_inserted=0,
+            )
+            session.add(plugin_run)
+            await session.commit()
 
-                try:
-                    listings = await self._collect_with_retry(plugin)
-                    jobs_fetched = len(listings)
-                    ingest_stats = await ingest_job_listings(listings, plugin.plugin_name, session=session)
-                    jobs_inserted = ingest_stats.inserted
-                    jobs_updated = ingest_stats.updated
-                    jobs_duplicates = ingest_stats.duplicates
-                    if ingest_stats.errors:
-                        error_message = "; ".join(ingest_stats.errors)
-                    success = True
-                    plugin_run.status = "success"
-                except Exception as exc:
-                    error_message = str(exc)
-                    plugin_run.status = "failure"
-                    logger.exception(
-                        "Plugin execution failed",
-                        extra={"plugin": plugin.plugin_name, "error": error_message},
-                    )
-                finally:
-                    finished_at = datetime.now(timezone.utc)
-                    duration_ms = int((perf_counter() - run_start) * 1000)
-                    plugin_run.finished_at = finished_at
-                    plugin_run.duration_ms = duration_ms
-                    plugin_run.jobs_fetched = jobs_fetched
-                    plugin_run.jobs_inserted = jobs_inserted
-                    plugin_run.error = error_message
+            try:
+                listings = await self._collect_with_retry(plugin)
+                jobs_fetched = len(listings)
+                ingest_stats = await ingest_job_listings(listings, plugin.plugin_name, session=session)
+                jobs_inserted = ingest_stats.inserted
+                jobs_updated = ingest_stats.updated
+                jobs_duplicates = ingest_stats.duplicates
+                if ingest_stats.errors:
+                    error_message = "; ".join(ingest_stats.errors)
+                success = True
+                plugin_run.status = "success"
+            except Exception as exc:
+                error_message = str(exc)
+                plugin_run.status = "failure"
+                logger.exception(
+                    "Plugin execution failed",
+                    extra={"plugin": plugin.plugin_name, "error": error_message},
+                )
+            finally:
+                finished_at = datetime.now(timezone.utc)
+                duration_ms = int((perf_counter() - run_start) * 1000)
+                plugin_run.finished_at = finished_at
+                plugin_run.duration_ms = duration_ms
+                plugin_run.jobs_fetched = jobs_fetched
+                plugin_run.jobs_inserted = jobs_inserted
+                plugin_run.error = error_message
+                await session.commit()
 
         return PluginExecutionSummary(
             plugin_name=plugin.plugin_name,

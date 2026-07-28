@@ -214,11 +214,15 @@ async def query_jobs(
     }
 
 
-def _interleave_by_company(jobs: List[Job], limit: int = 12) -> List[Job]:
+from datetime import datetime
+
+def _interleave_by_company(jobs: List[Job], limit: int = 12, max_per_company: int = 2) -> List[Job]:
     by_company: Dict[str, List[Job]] = {}
     for job in jobs:
         comp_name = job.company.name if (hasattr(job, "company") and job.company) else "Unknown"
-        by_company.setdefault(comp_name, []).append(job)
+        comp_jobs = by_company.setdefault(comp_name, [])
+        if len(comp_jobs) < max_per_company:
+            comp_jobs.append(job)
 
     interleaved: List[Job] = []
     company_keys = list(by_company.keys())
@@ -233,6 +237,8 @@ def _interleave_by_company(jobs: List[Job], limit: int = 12) -> List[Job]:
         if len(interleaved) >= limit:
             break
 
+    # Sort strictly by published_at descending
+    interleaved.sort(key=lambda j: getattr(j, "published_at", None) or datetime.min, reverse=True)
     return interleaved[:limit]
 
 
@@ -352,11 +358,11 @@ async def query_home_jobs(session: AsyncSession) -> Dict[str, Any]:
                 if len(matched_jobs) >= limit * 2:
                     break
 
-        result[key] = _interleave_by_company(matched_jobs, limit=limit)
+        result[key] = _interleave_by_company(matched_jobs, limit=limit, max_per_company=2)
 
     # Always include latest
     if "latest" not in result:
-        result["latest"] = _interleave_by_company(all_active_jobs, limit=12)
+        result["latest"] = _interleave_by_company(all_active_jobs, limit=12, max_per_company=2)
 
     # Trending companies
     result["trending_companies"] = await query_trending_companies(session, limit=10)

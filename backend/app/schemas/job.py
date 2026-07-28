@@ -1,10 +1,24 @@
 from __future__ import annotations
 
+import html
+import re
+from urllib.parse import quote
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
+
+
+def clean_description_text(raw_text: Optional[str]) -> str:
+    if not raw_text:
+        return ""
+    decoded = html.unescape(html.unescape(raw_text))
+    decoded = re.sub(r'<br\s*/?>', '\n', decoded, flags=re.IGNORECASE)
+    decoded = re.sub(r'</?(p|div|li|tr|h[1-6])\b[^>]*>', '\n', decoded, flags=re.IGNORECASE)
+    clean = re.sub(r'<[^>]+>', ' ', decoded)
+    lines = [line.strip() for line in clean.split('\n') if line.strip()]
+    return '\n\n'.join(lines) if lines else clean.strip()
 
 
 class JobResponse(BaseModel):
@@ -57,11 +71,15 @@ class JobResponse(BaseModel):
                 company_logo = getattr(job.company, "logo_url", None)
                 company_verified = getattr(job.company, "verified", False) or False
 
+        if not company_logo or not str(company_logo).strip():
+            encoded_name = quote(company_str if company_str and company_str != "Unknown" else "Company")
+            company_logo = f"https://ui-avatars.com/api/?name={encoded_name}&background=0284c7&color=ffffff&bold=true"
+
         return cls(
             id=job.id,
             slug=job.slug,
             title=job.title,
-            description=job.description or "",
+            description=clean_description_text(job.description or ""),
             location=job.location or "Remote",
             company=company_str,
             apply_url=str(job.apply_url or "https://example.com"),

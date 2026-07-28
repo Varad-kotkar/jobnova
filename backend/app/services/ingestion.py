@@ -17,7 +17,20 @@ from ..models.job_listing import JobListing
 
 logger = logging.getLogger(__name__)
 
+import html
+
 _SLUG_RE = re.compile(r"[^a-z0-9]+")
+
+def clean_description_text(raw_text: Optional[str]) -> str:
+    if not raw_text:
+        return ""
+    decoded = html.unescape(html.unescape(raw_text))
+    decoded = re.sub(r'<br\s*/?>', '\n', decoded, flags=re.IGNORECASE)
+    decoded = re.sub(r'</?(p|div|li|tr|h[1-6])\b[^>]*>', '\n', decoded, flags=re.IGNORECASE)
+    clean = re.sub(r'<[^>]+>', ' ', decoded)
+    lines = [line.strip() for line in clean.split('\n') if line.strip()]
+    res = '\n\n'.join(lines) if lines else clean.strip()
+    return res[:15000]
 
 # Salary extraction patterns
 _SALARY_PATTERNS = [
@@ -47,8 +60,9 @@ NON_TECH_REJECT_KEYWORDS = [
 
 def _generate_slug(company: str, title: str, location: str) -> str:
     combined = f"{company.strip()} {title.strip()} {location.strip()}".lower()
-    slug = _SLUG_RE.sub("-", combined).strip("-")
-    return slug[:1024]
+    base_slug = _SLUG_RE.sub("-", combined).strip("-")[:180]
+    hash_suffix = hashlib.sha256(combined.encode("utf-8")).hexdigest()[:6]
+    return f"{base_slug}-{hash_suffix}"
 
 
 def _compute_duplicate_hash(company: str, title: str, location: str) -> str:
@@ -180,11 +194,13 @@ async def _process_listings(
                 f"{listing.title} {listing.description or ''}"
             )
 
+            clean_desc = clean_description_text(listing.description)[:15000]
+
             if existing_job:
                 existing_job.source_id = source.id
                 existing_job.company_id = company.id
                 existing_job.title = listing.title
-                existing_job.description = listing.description
+                existing_job.description = clean_desc
                 existing_job.location = listing.location
                 existing_job.skills = listing.skills
                 existing_job.remote = listing.remote
@@ -203,7 +219,7 @@ async def _process_listings(
                     source_id=source.id,
                     company_id=company.id,
                     title=listing.title,
-                    description=listing.description,
+                    description=clean_desc,
                     location=listing.location,
                     apply_url=apply_url,
                     slug=slug,
